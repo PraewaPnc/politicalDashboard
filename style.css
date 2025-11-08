@@ -1,0 +1,532 @@
+/* =========================================================
+   GLOBAL BASE STYLES & TYPOGRAPHY
+========================================================= */
+body {
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  margin: 0;
+  background-image: url('bg2.png');
+  /* background-size: cover; */
+  background-attachment: fixed;
+  /* background-color: #fafafa; */
+  color: #333;
+  line-height: 1.5;
+}
+
+div {
+  box-sizing: border-box;
+  position: relative;
+}
+
+h2 {
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+/* =========================================================
+   HEADER
+========================================================= */
+header {
+  text-align: center;
+  padding: 3rem 0;
+  background: linear-gradient(90deg, #ef7723, #242e85);
+  color: white;
+  height: 160px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+header .subtitle {
+  font-size: 0.95rem;
+  opacity: 0.9;
+  margin-top: 20px;
+}
+
+/* =========================================================
+   CONTAINERS & LAYOUT
+========================================================= */
+.container {
+  max-width: 1500px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.charts-grid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.viz-top,
+.viz-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 16px;
+}
+
+.chart {
+  background: rgba(255, 255, 255, 0.2); /* Semi-transparent white background */
+  border: 1px solid rgba(221, 221, 221, 0.5);
+  border-radius: 10px;
+  padding: 10px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Chart-specific sizes */
+#waffleChart,
+#icicleChart {
+  width: 600px;
+  min-height: 400px;
+}
+
+#pieChart,
+#sideWaffleWrap {
+  width: 500px;
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+}
+
+#sideWaffleChart {
+  flex: 1;
+}
+
+/* Custom rule to ensure all text in the waffle chart adopts the dynamic color */
+#waffleChart text tspan.text-body {
+    /* Use 'fill' for SVG text. We must use the Bootstrap CSS variable 
+       which correctly holds the dark/light mode color. */
+    fill: var(--bs-body-color) !important;
+    color: var(--bs-body-color) !important; /* Fallback for good measure */
+}
+/* =========================================================
+   CONTROLS / TOOLBAR
+========================================================= */
+.controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 20px 0 12px;
+  gap: 10px;
+}
+
+.controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+}
+
+.controls label {
+  font-weight: 600;
+}
+
+select {
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  font-size: 0.8rem;
+}
+
+.control-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* #refreshData {
+  font-size: 0.8rem;
+  padding: 5px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background-color: #fff;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+#refreshData:hover {
+  background-color: #f5d9c8;
+} */
+
+#status {
+  font-size: 0.9rem;
+  color: #555;
+}
+
+/* =========================================================
+   SHAPE TOGGLE CONTROLS
+========================================================= */
+.side-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.shape-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+/* .shape-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.shape-btn.active,
+.shape-btn[aria-pressed="true"] {
+  background: #f0f4f8;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border-color: #999;
+} */
+
+/* Use a simple style for all buttons */
+.shape-toggle .btn {
+  font-size: 0.8rem;
+  padding: 6px 10px;
+}
+
+/* Ensure the active state uses the filled 'secondary' color (Bootstrap will handle the color based on theme) */
+.shape-toggle .active,
+.shape-toggle .btn:active,
+.shape-toggle .btn[aria-pressed="true"] {
+  /* Set a transparent background for the active state to ensure Bootstrap's filled color shows through */
+  background-color: transparent !important;
+}
+
+/* =========================================================
+   TOOLTIP
+========================================================= */
+#tooltip {
+  position: fixed;
+  pointer-events: none;
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 10px;
+  border-radius: 8px;
+  width: 420px;
+  font-size: 13px;
+  z-index: 9999;
+}
+
+.hidden {
+  display: none;
+}
+
+#tooltip-header {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+#tooltip-sub {
+  color: #555;
+  margin-bottom: 6px;
+}
+
+/* =========================================================
+   TREEMAP & SIDE WAFFLE STYLES
+========================================================= */
+.treemap-rect {
+  stroke: #fff;
+  stroke-width: 1px;
+  opacity: 0.95;
+}
+
+.treemap-rect.highlight {
+  stroke: #ffd54f;
+  stroke-width: 3px;
+  opacity: 1;
+}
+
+.treemap-rect.dim {
+  opacity: 0.32;
+  filter: grayscale(1);
+}
+
+.side-square {
+  stroke: #fff;
+  cursor: pointer;
+}
+
+.side-square.dim {
+  opacity: 0.28;
+  filter: grayscale(1);
+}
+
+.side-square.highlight {
+  stroke: #ffffff;
+  stroke-width: 0;
+}
+
+/* =========================================================
+   WAFFLE CHART SELECTION
+========================================================= */
+.waffle-square {
+  stroke-width: 1px;
+  stroke: transparent;
+  transition: stroke 0.2s;
+}
+
+.waffle-square.selected {
+  stroke: #ff9900;
+  stroke-width: 3px;
+}
+
+/* =========================================================
+   PIE CHART & LEGEND
+========================================================= */
+.pie-title-bar {
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.pie-header-prompt {
+  font-size: 16px;
+  color: #888;
+}
+
+.pie-chart-content-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+}
+
+.legend-container {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.legend-color-square {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.legend-percentage {
+  font-weight: 700;
+  margin-left: auto;
+}
+
+#pieChart svg {
+  flex-shrink: 0;
+}
+
+.pie-title {
+  font-size: 16px;
+  color: #333;
+  margin-bottom: 8px;
+  transition: color 0.2s ease-in-out;
+}
+
+/* .pie-title:hover {
+  color: #668eb8;
+  font-weight: 800;
+} */
+
+.pie-title:hover .pie-title-text {
+    /* Add highlight effect */
+    text-decoration: underline;
+    /* You can also make it slightly brighter on hover, 
+       using a Bootstrap emphasis color variable which switches modes */
+    color: var(--bs-emphasis-color); 
+}
+
+/* Ensure the date text is not underlined on hover */
+.pie-title:hover .pie-date-text {
+    text-decoration: none;
+}
+/* =========================================================
+   POPUP MODAL
+========================================================= */
+.popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow-y: auto;
+  display: none;
+}
+
+.popup-box {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+  max-width: 600px;
+  width: 90%;
+  margin: 250px auto;
+  transform: translateY(-20px);
+  opacity: 0;
+  animation: slideIn 0.3s forwards;
+}
+
+@keyframes slideIn {
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Header */
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 30px;
+  border-bottom: 1px solid #eee;
+  background-color: #f7f7f7;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+
+#popup-title {
+  margin: 0;
+  font-size: 1.1em;
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.popup-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.8em;
+  font-weight: 300;
+  color: #999;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.popup-close-btn:hover {
+  color: #e74c3c;
+}
+
+/* Body */
+.popup-body {
+  padding: 20px 30px 30px;
+}
+
+.popup-info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.95em;
+  padding-bottom: 5px;
+  border-bottom: 1px dashed #eee;
+}
+
+.info-label {
+  font-weight: 500;
+  color: #555;
+}
+
+.info-value {
+  font-weight: 700;
+}
+
+/* Result badges */
+.result-status {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.status-passed {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.status-failed {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+/* Description */
+.popup-description-title {
+  margin-top: 20px;
+  margin-bottom: 5px;
+  font-size: 1.1em;
+  font-weight: 600;
+  color: #34495e;
+  border-bottom: 2px solid #ccc;
+  padding-bottom: 2px;
+}
+
+.popup-description-text {
+  line-height: 1.6;
+  color: #444;
+  white-space: pre-wrap;
+  max-height: 1000px;
+  overflow-y: auto;
+}
+
+/* =========================================================
+   RESPONSIVE LAYOUT
+========================================================= */
+@media (max-width: 1100px) {
+  .viz-top,
+  .viz-bottom {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #waffleChart,
+  #icicleChart,
+  #pieChart,
+  #sideWaffleWrap {
+    width: 92%;
+  }
+
+  #tooltip {
+    width: 90%;
+  }
+}
+
+/* =========================================================
+   FOOTER
+========================================================= */
+.site-footer {
+  width: 100%;
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.8rem;
+  color: #faf8f8;
+  background: linear-gradient(90deg, #ef7723, #242e85);
+  margin-top: 2rem;
+  /* border-top: 1px solid #ddd; */
+}
+
+.footer-image {
+    max-width: 100px;
+    height: auto;
+    margin-top: 10px;
+}
+
+
