@@ -59,16 +59,20 @@ header .subtitle {
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* Ensure the grid container takes full width of the main content area */
+  width: 100%; 
 }
 
+/* MODIFIED: Removed custom flex properties for viz-top/viz-bottom. 
+    The Bootstrap .row class handles display: flex and wrap. 
+*/
+/* Ensure chart rows are centered */
 .viz-top,
 .viz-bottom {
-  display: flex;
-  flex-wrap: wrap;
   justify-content: center;
-  align-items: flex-start;
-  gap: 18px;
-  margin-bottom: 16px;
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
 }
 
 .chart {
@@ -77,19 +81,20 @@ header .subtitle {
   border-radius: 10px;
   padding: 10px;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
+  display: block;
+  /* Ensure the chart takes the full width of its Bootstrap column */
+  width: 100%; 
+  height: auto;
 }
 
 /* Chart-specific sizes */
-/* #waffleChart {
-  width: 600px;
-  min-height: 400px;
-} */
+/* MODIFIED: Removed fixed 'width: 600px' for full responsiveness */
 #waffleChart,
 #pieChart,
 #sideWaffleWrap,
 #circlePacking {
-  width: 600px;
-  min-height: 400px;
+  /* width: 600px; <-- REMOVED */ 
+  min-height: 350px; /* Reduced min-height slightly for better mobile fit */
   display: flex;
   flex-direction: column;
 }
@@ -107,17 +112,14 @@ header .subtitle {
 }
 
 /* === Circle Packing box === */
-/* #circlePacking {
-  width: 600px;          
-  min-height: 400px;     
-} */
- 
-/* ทำให้ตอบสนองเหมือน #waffleChart ตอนจอแคบ */
-@media (max-width: 1100px) {
+/* MODIFIED: Removed the restrictive media query now that Bootstrap handles responsiveness */
+/* @media (max-width: 1100px) {
   #circlePacking {
     width: 92%;
   }
-}
+} */
+
+
 /* =========================================================
    CONTROLS / TOOLBAR
 ========================================================= */
@@ -319,32 +321,63 @@ select {
   flex-grow: 1;
 }
 
+/* --- Legend Styling for Pie Chart --- */
+
 .legend-container {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  justify-content: center;
-  gap: 16px;
-  margin-top: 10px;
+    /* Base style for desktop/wide view (one row, 4 columns) */
+    display: flex;
+    flex-direction: row; 
+    flex-wrap: nowrap;   
+    /* CHANGE 1: Use 'center' to group items together, not 'space-around' */
+    justify-content: center; 
+    align-items: center;
+    padding: 0 10px;
+    gap: 10px; /* Space between legend items */
+    
+    /* Ensure the container is big enough but centered */
+    max-width: 400px;
+    /* CHANGE 2: Use auto margins to center the entire container */
+    margin: 12px auto 0 auto;
 }
 
 .legend-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem; 
+    white-space: nowrap; 
 }
 
 .legend-color-square {
-  width: 12px;
-  height: 12px;
-  border-radius: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
 }
 
 .legend-percentage {
-  font-weight: 700;
-  margin-left: auto;
+    font-weight: bold;
+}
+
+/* --- Media Query for Small Screens (e.g., Bootstrap 'md' breakpoint and below) --- */
+@media (max-width: 768px) {
+    .legend-container {
+        /* Switch to wrapping mode */
+        flex-wrap: wrap; 
+        
+        /* Keep centered alignment */
+        justify-content: center; 
+        
+        /* Increase space between the two rows */
+        gap: 15px 10px; 
+    }
+
+    .legend-item {
+        /* Keep 45% width for 2-column layout */
+        width: 45%; 
+        /* CHANGE 3: Center content within the 45% width slot */
+        justify-content: center; 
+        font-size: 0.75rem; 
+    }
 }
 
 #pieChart svg {
@@ -539,6 +572,47 @@ select {
 @media (max-width: 576px) {
   .dropdown-menu {
     max-height: 220px;
+    font-size: 0.9rem;
+  }
+}
+
+
+/* ----------------------------------------
+   Responsive & Media Queries
+---------------------------------------- */
+
+/* Large screens (desktop) */
+@media (min-width: 992px) {
+  .viz-top > .col-md-6,
+  .viz-bottom > .col-md-6 {
+    flex: 0 0 auto;
+    width: 40%; /* narrower than 50% for spacing */
+  }
+
+  #charts {
+    padding-left: 4rem;
+    padding-right: 4rem;
+    min-height: calc(100vh - 220px);
+  }
+}
+
+/* Small screens (mobile) */
+@media (max-width: 576px) {
+  #charts {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .chart {
+    max-width: 100%;
+    padding: 0.75rem;
+  }
+
+  .site-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .site-header .subtitle {
     font-size: 0.9rem;
   }
 }
