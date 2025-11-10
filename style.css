@@ -516,3 +516,29 @@ select {
   margin-top: 2rem;
   /* border-top: 1px solid #ddd; */
 }
+
+
+/* ================================
+   Scrollable Dropdown Fix
+================================ */
+.dropdown-menu {
+  max-height: 280px;        /* adjust as you like (200–320px works well) */
+  overflow-y: auto;         /* enable vertical scroll when content exceeds height */
+  scrollbar-width: thin;    /* slim scrollbar for Firefox */
+}
+
+/* Optional: slightly round scroll area for smoother look */
+.dropdown-menu::-webkit-scrollbar {
+  width: 6px;
+}
+.dropdown-menu::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+@media (max-width: 576px) {
+  .dropdown-menu {
+    max-height: 220px;
+    font-size: 0.9rem;
+  }
+}
