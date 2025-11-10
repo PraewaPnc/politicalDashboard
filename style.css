@@ -10,6 +10,7 @@ body {
   /* background-color: #fafafa; */
   color: #333;
   line-height: 1.5;
+  padding-top: 50px; /* To prevent content being hidden behind fixed navbar */
 }
 
 div {
@@ -27,19 +28,20 @@ h2 {
 ========================================================= */
 header {
   text-align: center;
-  padding: 3rem 0;
+  padding: 5rem 0;
   background: linear-gradient(90deg, #ef7723, #242e85);
   color: white;
-  height: 160px;
+  height: auto;
 }
-
+ 
 header h1 {
   margin: 0;
-  font-size: 1.8rem;
+  font-size: 2rem;
+  font-weight: bold;
 }
-
+ 
 header .subtitle {
-  font-size: 0.95rem;
+  font-size: 1.15rem;
   opacity: 0.9;
   margin-top: 20px;
 }
@@ -78,16 +80,16 @@ header .subtitle {
 }
 
 /* Chart-specific sizes */
-#waffleChart,
-#icicleChart {
+/* #waffleChart {
   width: 600px;
   min-height: 400px;
-}
-
+} */
+#waffleChart,
 #pieChart,
-#sideWaffleWrap {
-  width: 500px;
-  min-height: 320px;
+#sideWaffleWrap,
+#circlePacking {
+  width: 600px;
+  min-height: 400px;
   display: flex;
   flex-direction: column;
 }
@@ -102,6 +104,19 @@ header .subtitle {
        which correctly holds the dark/light mode color. */
     fill: var(--bs-body-color) !important;
     color: var(--bs-body-color) !important; /* Fallback for good measure */
+}
+
+/* === Circle Packing box === */
+/* #circlePacking {
+  width: 600px;          
+  min-height: 400px;     
+} */
+ 
+/* ทำให้ตอบสนองเหมือน #waffleChart ตอนจอแคบ */
+@media (max-width: 1100px) {
+  #circlePacking {
+    width: 92%;
+  }
 }
 /* =========================================================
    CONTROLS / TOOLBAR
@@ -487,27 +502,6 @@ select {
   overflow-y: auto;
 }
 
-/* =========================================================
-   RESPONSIVE LAYOUT
-========================================================= */
-@media (max-width: 1100px) {
-  .viz-top,
-  .viz-bottom {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  #waffleChart,
-  #icicleChart,
-  #pieChart,
-  #sideWaffleWrap {
-    width: 92%;
-  }
-
-  #tooltip {
-    width: 90%;
-  }
-}
 
 /* =========================================================
    FOOTER
@@ -522,11 +516,3 @@ select {
   margin-top: 2rem;
   /* border-top: 1px solid #ddd; */
 }
-
-.footer-image {
-    max-width: 100px;
-    height: auto;
-    margin-top: 10px;
-}
-
-

@@ -5,6 +5,7 @@ import { createPieChart } from "./pieChart.js";
 import { createSideWaffleChart } from "./sideWaffleChart.js";
 import { createIcicleChart } from "./icicleChart.js";
 import { createDetailsPopup } from "./popup.js";
+import { createCirclePacking } from "./circlePacking.js";
 
 let allRecords = [];
 let PARTY_COLORS = {};
@@ -108,54 +109,92 @@ async function loadData(force = false) {
 }
 
 /* ---------------- FILTERS ---------------- */
+/* ---------------- FILTERS ---------------- */
 function setupFilters() {
-  const yearSel = d3.select("#yearFilter");
-  const partySel = d3.select("#partyFilter");
+  // YEAR DROPDOWN CLICK HANDLER
+  d3.select("#yearDropdownMenu").on("click", (event) => {
+    const item = event.target.closest("a[data-value]");
+    if (!item) return;
+    event.preventDefault();
 
-  yearSel.on("change", e => {
-    currentYear = +e.target.value || null;
+    const value = item.getAttribute("data-value");
+    currentYear = value === "all" ? null : +value;
+    d3.select("#yearFilter").text(value === "all" ? "ทั้งหมด" : value);
+
     renderAll();
     bus.dispatch("year:filterChanged", currentYear);
   });
 
-  partySel.on("change", e => {
-    currentParty = e.target.value === "all" ? null : e.target.value;
+  // PARTY DROPDOWN CLICK HANDLER
+  d3.select("#partyDropdownMenu").on("click", (event) => {
+    const item = event.target.closest("a[data-value]");
+    if (!item) return;
+    event.preventDefault();
+
+    const value = item.getAttribute("data-value");
+    currentParty = value === "all" ? null : value;
+    d3.select("#partyFilter").text(value === "all" ? "ทุกพรรค" : value);
+
     bus.dispatch("party:filterChanged", currentParty);
     sideWaffleChartInstance?.render?.();
   });
 }
 
+/* ---------------- POPULATE YEAR DROPDOWN ---------------- */
 function populateYearFilter() {
-  const yearSel = d3.select("#yearFilter");
-  const years = [...new Set(allRecords.map(d => d.year))].filter(Boolean).sort((a, b) => a - b);
+  const menu = d3.select("#yearDropdownMenu");
+  menu.selectAll("li.dynamic").remove(); // clear old dynamic items
 
-  yearSel.selectAll("option").remove();
+  const years = [...new Set(allRecords.map(d => d.year))]
+    .filter(Boolean)
+    .sort((a, b) => a - b);
 
   if (years.length === 0) {
-    yearSel.append("option").attr("value", "").text("No data");
+    menu.append("li")
+      .attr("class", "dropdown-item text-muted")
+      .text("No data");
     return;
   }
 
-  yearSel.selectAll("option")
-    .data(years)
-    .join("option")
-    .attr("value", d => d)
-    .text(d => d);
+  // Append dynamic year options
+  years.forEach(y => {
+    menu.append("li")
+      .attr("class", "dynamic")
+      .append("a")
+      .attr("class", "dropdown-item")
+      .attr("href", "#")
+      .attr("data-value", y)
+      .text(y);
+  });
 
+  // ✅ Auto-select the latest year
   currentYear = years.at(-1);
-  yearSel.property("value", currentYear);
+  d3.select("#yearFilter").text(currentYear);
 }
 
+/* ---------------- POPULATE PARTY DROPDOWN ---------------- */
 function populatePartyFilter() {
-  const partySel = d3.select("#partyFilter");
-  const parties = [...new Set(allRecords.flatMap(r => (r.votes || []).map(v => v.voter_party)))].filter(Boolean).sort();
+  const menu = d3.select("#partyDropdownMenu");
+  menu.selectAll("li.dynamic").remove(); // clear old items
 
-  partySel.selectAll("option")
-    .data(["all", ...parties])
-    .join("option")
-    .attr("value", d => d)
-    .text(d => d);
+  const parties = [...new Set(allRecords.flatMap(r => (r.votes || []).map(v => v.voter_party)))]
+    .filter(Boolean)
+    .sort();
+
+  parties.forEach(p => {
+    menu.append("li")
+      .attr("class", "dynamic")
+      .append("a")
+      .attr("class", "dropdown-item")
+      .attr("href", "#")
+      .attr("data-value", p)
+      .text(p);
+  });
+
+  // ✅ Default display = ทุกพรรค (All)
+  d3.select("#partyFilter").text("ทุกพรรค");
 }
+
 
 /* ---------------- REFRESH BUTTON ---------------- */
 function setupRefreshButton() {
@@ -190,7 +229,34 @@ function setupTooltipAndTreemap() {
     tooltip.classed("hidden", false);
     tooltip.select("#tooltip-header").text(new Date(record.dateStr).toLocaleDateString());
     tooltip.select("#tooltip-sub").text(record.title);
-    tooltip.select("#tooltip-percent").text(`Present: ${record.presentCount}/${record.totalVoters} (${record.presentPercent}%)`);
+    // ✅ NEW: แสดง % แบบแยกพรรคเมื่อเลือก filter
+const partyKey = currentParty?.trim().toLowerCase() || "all";
+let presentInfo = "";
+
+if (!currentParty || currentParty === "all") {
+  // แสดงรวม
+  presentInfo = `Present: ${record.presentCount}/${record.totalVoters} (${record.presentPercent}%)`;
+} else {
+  const partyBreakdown = record.partyBreakdown || {};
+  const totalByParty = record.totalByParty || {};
+
+  const matchedParty = Object.keys(totalByParty).find(
+    p => p.trim().toLowerCase() === partyKey
+  );
+
+  const partyPresent = matchedParty ? (partyBreakdown[matchedParty] || 0) : 0;
+  const partyTotal = matchedParty ? (totalByParty[matchedParty] || 0) : 0;
+
+  if (partyTotal > 0) {
+    const percent = ((partyPresent / partyTotal) * 100).toFixed(1);
+    presentInfo = `Present: ${partyPresent}/${partyTotal} (${percent}%)`;
+  } else {
+    presentInfo = `No data for "${currentParty}"`;
+  }
+}
+
+tooltip.select("#tooltip-percent").text(presentInfo);
+
     bus.dispatch("show:treemap", record);
     moveTooltip(event);
   });
@@ -326,8 +392,15 @@ function renderAll() {
   const squareActive = document.getElementById("shapeSquare")?.classList.contains("active");
   sideWaffleChartInstance?.setShape?.(squareActive ? "square" : "person");
 
-  createIcicleChart("#icicleChart", allRecords, PARTY_COLORS, bus);
-  bus.dispatch("year:filterChanged", currentYear);
+  // ⬇️ Zoomable circle packing
+console.log("CirclePacking records:", allRecords);
+const circleAPI = createCirclePacking("#circlePacking", allRecords, PARTY_COLORS, bus);
+ 
+// ให้ waffle chart ส่ง title เข้ามา แล้วสั่ง zoom ไปยัง พ.ร.บ. นั้น
+bus.on("waffle:select", ({ title }) => circleAPI.zoomToBillTitle(title));
+ 
+// ยังต้องบอกปีให้ทุก chart รับรู้เหมือนเดิม
+bus.dispatch("year:filterChanged", currentYear);
 }
 
 /* ---------------- START ---------------- */

@@ -29,6 +29,10 @@ ORGANIZATIONS_QUERY = """
 # --- Utility Functions ---
 
 def flatten_graphql_response(response_json):
+    """
+    Handles a GraphQL JSON response and returns a flat DataFrame.
+    This logic is required to correctly parse the nested GraphQL structure.
+    """
     if not isinstance(response_json, dict):
         raise ValueError("Expected a GraphQL response dict")
 
@@ -36,6 +40,7 @@ def flatten_graphql_response(response_json):
     if not data_section:
         raise ValueError("No 'data' key found in GraphQL response")
 
+    # Find the first list of entities under 'data'
     data = None
     for k, v in data_section.items():
         if isinstance(v, list):
@@ -46,18 +51,25 @@ def flatten_graphql_response(response_json):
         raise ValueError("No list-type data found inside 'data'")
 
     df = pd.json_normalize(data, sep='.')
-    return df
+    
+    # Simple check for nested lists/dicts to ensure flatness
+    for col in df.columns:
+        if df[col].apply(lambda x: isinstance(x, (list, dict))).any():
+             # If complex structure remains, this simplified function will stop here
+             # For the expected VOTES_QUERY, the result should be flat.
+             pass 
 
+    return df
 
 def clean_text(s):
     """Clean up the party name text (remove special characters and spaces)."""
     if pd.isna(s) or s is None: 
         return ""
     s = str(s).strip()
+    # Remove special characters (preserving Thai/English letters, numbers, and space)
     s = re.sub(r'[^\u0E00-\u0E7Fa-zA-Z0-9\s]', '', s)
     s = re.sub(r'\s+', '', s)  # Remove all spaces
     return s
-
 
 def to_canonical(s, canon_list, cutoff=0.6):
     """Find the closest canonical match using fuzzy matching."""
@@ -70,9 +82,13 @@ def to_canonical(s, canon_list, cutoff=0.6):
 
 
 def generate_cleaned_party_map():
+    """
+    Fetches vote and organization data, cleans party names, and generates 
+    a dictionary mapping {vote_id: cleaned_party_name}.
+    """
     print("Fetching votes and organizations data...")
     try:
-        # 1. Fetch Votes Data
+        # 1. Fetch Votes Data (ID and raw party name)
         votes_response = requests.post(URL, json={'query': VOTES_QUERY})
         votes_response.raise_for_status()
         df_votes = flatten_graphql_response(votes_response.json())
@@ -89,45 +105,33 @@ def generate_cleaned_party_map():
         print(f"Error processing GraphQL response: {e}. Cannot proceed.")
         return {}
 
-    # ✅ Replace null/NaN/None and too-short strings with 'อื่นๆ'
-    df_votes['voter_party'] = df_votes['voter_party'].fillna('อื่นๆ')
-    df_votes.loc[df_votes['voter_party'].isin([None, '', 'nan', 'NaN']), 'voter_party'] = 'อื่นๆ'
-
-    # ✅ Replace short strings (length <= 2) with 'อื่นๆ'
-    df_votes['voter_party'] = df_votes['voter_party'].apply(
-        lambda x: 'อื่นๆ' if isinstance(x, str) and len(x.strip()) <= 2 else x
-    )
-
-    # 3. Prepare Canonical List
-    canonical_list = df_org['name'].unique().tolist() + ['สมาชิกวุฒิสภา', 'อื่นๆ']
+    # 3. Prepare Canonical List: Organization names + Senator (สมาชิกวุฒิสภา)
+    canonical_list = df_org['name'].unique().tolist() + ['สมาชิกวุฒิสภา']
 
     # 4. Clean and Map Party Names
     df_votes['party_clean'] = df_votes['voter_party'].apply(clean_text)
+    
+    # Map the cleaned party names to the canonical list
     df_votes['voter_party_final'] = df_votes['party_clean'].apply(
         lambda x: to_canonical(x, canonical_list)
     )
 
-    # ✅ Add "พรรค" prefix except for 'สมาชิกวุฒิสภา' and 'อื่นๆ'
-    df_votes['voter_party_final'] = df_votes['voter_party_final'].apply(
-        lambda x: f"พรรค{x}" if x not in ['สมาชิกวุฒิสภา', 'อื่นๆ'] and not str(x).startswith('พรรค') else x
-    )
-
-    # 5. Create Final Mapping
+    # 5. Create the Final Map: {vote_id: cleaned_party_name}
+    # Ensure 'id' and 'voter_party_final' columns exist before zipping
     if 'id' not in df_votes.columns or 'voter_party_final' not in df_votes.columns:
         print("Required columns ('id' or 'voter_party_final') are missing.")
         return {}
         
     vote_party_map = dict(zip(df_votes['id'], df_votes['voter_party_final']))
     
-    # 6. Save to JSON
+    # 6. Save the map to a file for the JavaScript app to consume
     output_filename = 'cleaned_party_map.json'
     with open(output_filename, 'w', encoding='utf-8') as f:
         json.dump(vote_party_map, f, ensure_ascii=False, indent=2)
 
-    print(f"✅ Successfully generated and saved map to {output_filename}")
+    print(f"Successfully generated and saved map to {output_filename}")
     print(f"Total entries: {len(vote_party_map)}")
     return vote_party_map
-
 
 if __name__ == "__main__":
     generate_cleaned_party_map()

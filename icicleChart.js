@@ -5,8 +5,8 @@ export function createIcicleChart(containerSelector, records, partyColors, event
   container.selectAll("*").remove();
 
   // --- Dimensions ---
-  const width = 300;
-  const height = 300;
+  const width = 800;
+  const height = 500;
   const margin = { top: 20, right: 10, bottom: 10, left: 10 };
 
   // --- SVG Setup ---
@@ -18,7 +18,7 @@ export function createIcicleChart(containerSelector, records, partyColors, event
   const header = svg.append("text")
     .attr("x", margin.left)
     .attr("y", 14)
-    .attr("font-size", "1.05rem")
+    .attr("font-size", 13)
     .attr("font-weight", 600)
     .attr("fill", "#333");
 
@@ -44,7 +44,7 @@ export function createIcicleChart(containerSelector, records, partyColors, event
   // --- Draw the icicle chart for the given year ---
   function drawYear(year) {
     g.selectAll("*").remove();
-    header.style("font-size", "0.75rem").text(`Absence Record for ${year}`);
+    header.text(`Absence Record for ${year}`);
 
     if (!rootAll?.children) return;
 
@@ -75,7 +75,7 @@ export function createIcicleChart(containerSelector, records, partyColors, event
       .attr("height", d => y(d.x1) - y(d.x0))
       .attr("fill-opacity", 0.8)
       .attr("fill", d => {
-        if (d.depth === 0) return "#c4bbbbff"; // root (year)
+        if (d.depth === 0) return "#fff"; // root (year)
         if (d.depth === 1) return partyColors[d.data.name] || defaultColor; // party
         return partyColors[d.parent.data.name] || defaultColor; // voter
       })
@@ -86,7 +86,6 @@ export function createIcicleChart(containerSelector, records, partyColors, event
     nodes.append("text")
       .attr("x", 4)
       .attr("y", 14)
-      .attr("font-size", "10px")
       .attr("clip-path", d => `url(#clip-${d.data.name}-${d.depth})`)
       .text(d => formatLabel(d));
 

@@ -8,12 +8,20 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
   const height = 320;
   const radius = 130;
 
+  // --- Label Thai ---
+  const labelsTh = {
+  agree: "เห็นด้วย",
+  disagree: "ไม่เห็นด้วย",
+  abstain: "งดออกเสียง",
+  novote: "ไม่ลงคะแนน",
+  };
+
   // --- Colors ---
   const colors = {
-    agree: "#57c886ff",
-    disagree: "#E74C3C",
-    abstain: "#F1C40F",
-    novote: "#95A5A6",
+    agree: "#447a5f",
+    disagree: "#832d51",
+    abstain: "#eed571ff",
+    novote: "#404553",
   };
 
   // --- Structure ---
@@ -165,6 +173,11 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
   eventBus.on("waffle:selected", d => update(d));
   eventBus.on("year:filterChanged", () => update(null));
   
+  // ⬇️⬇️ [ADD] ฟังสัญญาณจาก circle/waffle เพื่ออัปเดตพาย (คงรูปแบบเดิม)
+  eventBus.on?.("waffle:select", ({ record }) => { if (record) update(record); });
+  eventBus.on?.("pie:select",    ({ record }) => { if (record) update(record); });
+
+
   // Initial call to display the latest record
   update(latestRecord); 
 

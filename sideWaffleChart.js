@@ -1,7 +1,7 @@
 // sideWaffleChart.js
 // Uses inline <symbol id="personIcon"> and <use> with CSS 'color' for party color
 
-export function createSideWaffleChart(containerSelector, eventBus, colorByParty, latestRecord) {
+export function createSideWaffleChart(containerSelector, eventBus, colorByParty, latestRecord, totalMPs = 500) {
   const container = d3.select(containerSelector);
   container.selectAll("*").remove();
 
@@ -12,14 +12,14 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     .style("font-size", "1.2rem") // h4 size
     .style("font-weight", "bold")
     .style("margin-bottom", "10px")
-    .text("Party Breakdown by Vote Category");
+    .text("การโหวตแบ่งตามพรรคการเมือง");
   // ---------------------------
 
   // Create SVG and defs for person icon (uses currentColor)
   const svg = container
     .append("svg")
     .attr("width", "100%")
-    .attr("height", 220)
+    .attr("height", "100%")
     .attr("viewBox", "0 0 240 240");
 
   const defs = svg.append("defs");
@@ -78,22 +78,20 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     const total = d3.sum(top, d => d[1]);
     if (total === 0) return;
 
-    // Create scaled array of cells (max ~200)
-    const maxCells = 200;
-    const factor = Math.max(1, Math.ceil(total / maxCells));
-    const cells = [];
+    const factor = 1; //แก้
+      const cells = [];
     top.forEach(([party, count]) => {
-      const cellCount = Math.max(1, Math.round(count / factor));
-      for (let i = 0; i < cellCount; i++) cells.push(party);
+    const cellCount = Math.max(1, Math.round(count / factor));
+     for (let i = 0; i < cellCount; i++) cells.push(party);
     });
-
+ 
     // Layout params
-    const cols = 15;
-    const cellSize = 15;
-    const gap = 2;
+    const cols = 20;
+    const cellSize = 10;
+    const gap = 1.5;
     const width = cols * (cellSize + gap);
     const rows = Math.ceil(cells.length / cols);
-
+ 
     const g = svg.append("g").attr("transform", `translate(10,10)`);
 
     if (shape === "square") {
@@ -151,13 +149,17 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
             .map(([party, count]) => {
               const color = colorByParty[party] || "#bbb";
               const dimStyle = selectedParty && party !== selectedParty ? "opacity:0.35" : "";
+ 
+              const percent = (count / totalMPs) * 100;
+              const displayCount = `${count} (${percent.toFixed(1)}%)`;
+ 
               return `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin:3px 0;">
                   <div style="display:flex; align-items:center; gap:8px;">
                     <span style="width:12px; height:12px; background:${color}; display:inline-block;"></span>
                     <span class="text-body" style="font-size:15px;">${party}</span>
                   </div>
-                  <div class="text-body-secondary" style="${dimStyle}; font-size:15px">${count}</div>
+                  <div class="text-body-secondary" style="${dimStyle}; font-size:15px">${displayCount}</div>
                 </div>
               `;
             })
