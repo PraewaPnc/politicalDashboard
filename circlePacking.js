@@ -6,13 +6,12 @@
 // - คลิกใบ (leaf): "ไม่ซูม" แต่ไฮไลต์ตัวเอง + ส่งสัญญาณให้ Waffle active (waffle:select)
 // - Waffle จะส่งต่อ (waffle:selected) ให้ Pie เปลี่ยนตาม (รูปแบบเดิม)
 // - รับ event จาก Waffle เพื่อไฮไลต์ (เทาอย่างอื่น) โดยไม่ซูม
-// - รองรับจับคู่ขนาดกับ container อื่น (เช่น waffle) ผ่าน options.matchTo
 // - [NEW - YEAR FILTER] เมื่อปีเปลี่ยน จะทำให้ปีที่ถูกเลือกแสดง “สีปกติ” และปีอื่น ๆ เป็น “สีเทา”
 
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS, bus, options = {}) {
-  const matchTo    = options.matchTo || null;
+  // REMOVED: matchTo is no longer used for size matching, only for initial check
   const keepSquare = options.keepSquare ?? true;
 
   /* ---------------- Getters (รองรับหลาย schema) ---------------- */
@@ -80,25 +79,26 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
   const GREY_LEAF    = "#c9c9c9";
   const GREY_YEAR    = "#d8d8d8"; // [NEW - YEAR FILTER] สีเทาสำหรับวงปีที่ไม่ใช่ปีที่เลือก
 
-  /* ---------------- Container & Size ---------------- */
+  /* ---------------- Container & Size (UPDATED) ---------------- */
   const container = d3.select(containerSelector);
   container.selectAll("*").remove();
 
-  function getTargetSize() {
-    let w, h;
-    const refEl = matchTo ? document.querySelector(matchTo) : container.node();
-    const rect = refEl?.getBoundingClientRect?.();
-    if (rect && rect.width && rect.height) { w = rect.width; h = rect.height; }
-    else { w = container.node().clientWidth || 928; h = container.node().clientHeight || w; }
-    if (keepSquare) { const m = Math.min(w, h || w); return { W: m, H: m }; }
-    return { W: w, H: h || w };
+  // Initial size check
+  function getContainerSize() {
+    const refEl = container.node();
+    const w = refEl?.clientWidth || 400;
+    const h = refEl?.clientHeight || w;
+    const size = keepSquare ? Math.min(w, h || w) : w;
+    return { W: size, H: keepSquare ? size : h };
   }
-  let { W, H } = getTargetSize();
-
+  let { W, H } = getContainerSize();
+  
+  // Use viewBox for responsiveness
   const svg = container.append("svg")
-    .attr("width", W).attr("height", H)
     .attr("viewBox", `${-W/2} ${-H/2} ${W} ${H}`)
+    .attr("preserveAspectRatio", "xMidYMid meet")
     .style("display","block").style("cursor","pointer");
+    // Removed fixed width/height attributes from SVG
 
   const gCircles    = svg.append("g");
   const gResultLbls = svg.append("g").attr("pointer-events","none");
@@ -118,6 +118,8 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
     const sizeScale = d3.scaleSqrt().domain([0, maxDiff]).range([1, 30]);
 
     const data = buildHierarchy(records ?? [], sizeScale);
+
+    // Update D3 pack layout size based on current W and H
     root = d3.pack().size([W, H]).padding(3)(
       d3.hierarchy(data).sum(d => d.value || 0).sort((a,b)=>b.value - a.value)
     );
@@ -190,6 +192,9 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
 
   /* ---------------- Render ---------------- */
   function render() {
+    // 1. Re-run compute to update root based on current W/H
+    compute(allRecords); // Compute will re-calculate 'root' and 'view' based on current W/H
+
     const nodes = root.descendants().slice(1);
 
     const circles = gCircles.selectAll("circle")
@@ -260,9 +265,9 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
 
     svg.on("click", (event) => zoom(event, root));
 
-    svg.attr("width", W).attr("height", H)
-       .attr("viewBox", `${-W/2} ${-H/2} ${W} ${H}`);
-    zoomTo([focus.x, focus.y, focus.r * 2]);
+    // UPDATE: viewBox must be re-set if W/H changed (which it will if applyResize was called)
+    svg.attr("viewBox", `${-W/2} ${-H/2} ${W} ${H}`);
+    zoomTo([focus.x, focus.y, focus.r * 2]); // Initial draw
 
     function positionAll(v) {
       const k = W / v[2];
@@ -340,7 +345,11 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
   }
 
   /* ---------------- Public API & Event wiring ---------------- */
-  function update(records) { compute(records ?? allRecords ?? []); render(); }
+  function update(records) {
+    allRecords = records; // Update the internal record list
+    // Size is checked/updated inside applyResize, then render is called.
+    applyResize(true);
+  }
 
   function setActiveByKey(key) {
     selectedKey = key ?? null;
@@ -370,25 +379,34 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
     });
   });
 
-  // Resize ให้เท่ากับกล่องอ้างอิง
+  // [UPDATED] Resize Observer: listens to the *container* element itself
   let ro;
-  function applyResize() {
-    const size = getTargetSize();
-    if (size.W === W && size.H === H) return;
-    W = size.W; H = size.H;
-    svg.attr("width", W).attr("height", H)
-       .attr("viewBox", `${-W/2} ${-H/2} ${W} ${H}`);
-    update();
-  }
-  if (matchTo) {
-    const target = document.querySelector(matchTo);
-    if (target) { ro = new ResizeObserver(applyResize); ro.observe(target); }
-  } else {
-    const selfTarget = container.node();
-    if (selfTarget) { ro = new ResizeObserver(applyResize); ro.observe(selfTarget); }
-  }
+  function applyResize(forceRender = false) {
+    const size = getContainerSize();
+    if (!forceRender && size.W === W && size.H === H) return;
+    
+    W = size.W; 
+    H = size.H;
+    
+    // 1. Update the viewBox to the new dimensions
+    svg.attr("viewBox", `${-W/2} ${-H/2} ${W} ${H}`);
 
-  update(allRecords);
+    // 2. Recompute and render with the new dimensions
+    render(); 
+  }
+  
+  // Attach ResizeObserver to the container
+  const selfTarget = container.node();
+  if (selfTarget) { 
+    ro = new ResizeObserver(entries => {
+      // D3 must draw in the next frame, or it may crash/be unstable
+      window.requestAnimationFrame(() => applyResize());
+    }); 
+    ro.observe(selfTarget); 
+  }
+  
+  // Initial draw
+  render();
 
   function destroy() {
     if (ro) ro.disconnect();

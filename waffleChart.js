@@ -73,16 +73,20 @@ console.table(stats);  // <-- ดูผลใน browser console
   const maxPerRow = Math.max(1, ...countsPerMonth);
  
   // ✅ บังคับขนาดขั้นต่ำเพื่อให้ legend แสดงผลได้เสมอ
-  const MIN_WIDTH = 400;
-  const dynamicWidth = labelWidth + maxPerRow * (cellSize + gap) + 40;
-  const chartWidth = Math.max(dynamicWidth, MIN_WIDTH);
+  const MIN_CHART_WIDTH = 400; // Fixed internal drawing width
+  const DYNAMIC_DRAW_WIDTH = labelWidth + maxPerRow * (cellSize + gap) + 40;
+  const INTERNAL_WIDTH = Math.max(DYNAMIC_DRAW_WIDTH, MIN_CHART_WIDTH);
  
   const legendHeight = 40;
-  const height = rows * (cellSize + gap) + 40 + legendHeight + 20;
+  const INTERNAL_HEIGHT = rows * (cellSize + gap) + 40 + legendHeight + 20; // Fixed internal drawing height
   
+  // --- START RESPONSIVENESS CHANGES ---
   const svg = container.append("svg")
-    .attr("width", chartWidth)
-    .attr("height", height);
+    // REMOVED: .attr("width", chartWidth)
+    // REMOVED: .attr("height", height)
+    .attr("viewBox", `0 0 ${INTERNAL_WIDTH} ${INTERNAL_HEIGHT}`)
+    .attr("preserveAspectRatio", "xMidYMid meet");
+  // --- END RESPONSIVENESS CHANGES ---
  
  
  
@@ -172,7 +176,7 @@ console.table(stats);  // <-- ดูผลใน browser console
  
   // ✅ Legend ด้านล่างซ้าย
   const legendGroup = svg.append("g")
-    .attr("transform", `translate(10, ${height - legendHeight + 10})`);
+    .attr("transform", `translate(10, ${INTERNAL_HEIGHT - legendHeight + 10})`);
  
   for (let i = 0; i < numColors; i++) {
     const x = i * boxWidth;
@@ -245,4 +249,3 @@ function createMiniBus() {
     dispatch(evt, payload){ (map.get(evt)||[]).forEach(fn => fn(payload)); },
   };
 }
- 

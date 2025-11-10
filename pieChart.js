@@ -3,17 +3,37 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
   const container = d3.select(containerSelector);
   container.selectAll("*").remove();
 
-  // --- Dimensions ---
-  const width = 320;
-  const height = 320;
-  const radius = 130;
+  // --- Initial D3 Dimensions (These will be updated on resize) ---
+  let W = 320;
+  let H = 320;
+  let R = 130;
+
+  // Function to get the current container size
+  function getContainerSize() {
+    const refEl = container.node();
+    const w = refEl?.clientWidth || 320;
+    const h = refEl?.clientHeight || w; // Default to square
+    // Use the smallest dimension for the chart circle to ensure it fits
+    const size = Math.min(w, h);
+    
+    // Set chart dimensions based on container size
+    W = size;
+    H = size;
+    // UPDATED: Decreased factor from 0.4 to 0.35 to reduce radius
+    R = size * 0.30; // Radius is now about 30% of the container size 
+
+    return { W, H, R };
+  }
+  
+  // Get initial size
+  getContainerSize();
 
   // --- Label Thai ---
   const labelsTh = {
-  agree: "เห็นด้วย",
-  disagree: "ไม่เห็นด้วย",
-  abstain: "งดออกเสียง",
-  novote: "ไม่ลงคะแนน",
+    agree: "เห็นด้วย",
+    disagree: "ไม่เห็นด้วย",
+    abstain: "งดออกเสียง",
+    novote: "ไม่ลงคะแนน",
   };
 
   // --- Colors ---
@@ -38,18 +58,21 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
     .style("font-weight", "700")
     .style("margin-bottom", "3px")
     .style('margin-top', '6px')
-    // NEW: Add pointer cursor to indicate clickability
     .style("cursor", "pointer")
-    // NEW: Store the last record that was displayed in the DOM element's datum
     .datum(null); 
 
   // SVG (below title)
   const svg = chartWrapper
     .append("svg")
-    .attr("width", width)
-    .attr("height", height)
-    .append("g")
-    .attr("transform", `translate(${width / 2}, ${height / 2})`);
+    // REMOVED fixed width/height
+    .attr("viewBox", `0 0 ${W} ${H}`) // Initial viewBox
+    .attr("preserveAspectRatio", "xMidYMid meet")
+    .style("display", "block");
+
+  // G element for chart translation
+  const g = svg.append("g")
+    .attr("transform", `translate(${W / 2}, ${H / 2})`);
+
 
   const legendContainer = chartWrapper
     .append("div")
@@ -59,25 +82,48 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
 
   // --- D3 Generators ---
   const pie = d3.pie().value(d => d[1]).sort(null);
-  const arc = d3.arc().outerRadius(radius).innerRadius(0);
-  const arcHover = d3.arc().outerRadius(radius + 8).innerRadius(0);
+  let arc = d3.arc().outerRadius(R).innerRadius(0); // Initial arc generator
+  let arcHover = d3.arc().outerRadius(R + 8).innerRadius(0); // Initial hover arc generator
+
+  let currentData = null; // Store data for redraw
+
+  // --- Redraw function (for resizing) ---
+  function redraw() {
+      // 1. Recalculate dimensions based on container size
+      getContainerSize();
+
+      // 2. Update SVG viewBox and G translation
+      svg.attr("viewBox", `0 0 ${W} ${H}`);
+      g.attr("transform", `translate(${W / 2}, ${H / 2})`);
+      
+      // 3. Update arc generators with new radius
+      arc = d3.arc().outerRadius(R).innerRadius(0);
+      arcHover = d3.arc().outerRadius(R + 8).innerRadius(0);
+
+      // 4. Redraw paths if data exists
+      if (currentData) {
+          g.selectAll("path.slice")
+              .data(pie(currentData), d => d.data[0])
+              .attr("d", arc); // Apply new path definition
+      }
+  }
+
 
   // --- Update Function ---
   function update(record) {
     // Reset UI
     titleContainer.text("");
-    titleContainer.datum(null); // Clear stored record on reset
+    titleContainer.datum(null);
     chartWrapper.select(".pie-header-prompt")?.remove();
-    svg.selectAll("path.slice").remove();
+    g.selectAll("path.slice").remove(); // Use g for selections
     legendContainer.selectAll("*").remove();
+    currentData = null;
 
     // --- Case 1: No record selected ---
     if (!record) {
-      // If no record is selected, use the latestRecord
       if (latestRecord) {
         record = latestRecord;
       } else {
-        // If there's no latest record, display the prompt
         chartWrapper
           .append("div")
           .attr("class", "pie-header-prompt")
@@ -95,10 +141,9 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
         `<p class="pie-title-text text-body link-offset-3 link-underline-opacity-0">
         ${record.title}<span class="pie-date-text text-body-secondary"> — ${record.dateStr}</span></p>`
       )
-      // NEW: Store the current record in the DOM element's datum
       .datum(record);
 
-    const data = Object.entries(
+    currentData = Object.entries(
       record.categoryPercentages || {
         agree: 0,
         disagree: 0,
@@ -108,7 +153,7 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
     );
 
     // --- PIE SLICES ---
-    const slices = svg.selectAll("path.slice").data(pie(data), d => d.data[0]);
+    const slices = g.selectAll("path.slice").data(pie(currentData), d => d.data[0]);
 
     slices
       .join("path")
@@ -138,10 +183,10 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
       .duration(400)
       .attr("opacity", 0.9);
 
-    // --- LEGEND ---
+    // --- LEGEND (uses HTML/CSS for responsiveness) ---
     legendContainer
       .selectAll(".legend-item")
-      .data(data, d => d[0])
+      .data(currentData, d => d[0])
       .join("div")
       .attr("class", "legend-item")
       .attr("data-category", d => d[0])
@@ -149,7 +194,7 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
       .html(
         d => `
         <div class="legend-color-square" style="background:${colors[d[0]]}"></div>
-        <span class="legend-name">${d[0]}</span>
+        <span class="legend-name">${labelsTh[d[0]]}</span>
         <span class="legend-percentage">${d[1].toFixed(1)}%</span>
       `
       )
@@ -159,21 +204,34 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
       .style("opacity", 1);
   }
 
-  // --- NEW: Click handler for the title ---
+  // --- Click handler for the title ---
   titleContainer.on("click", function() {
-    // Retrieve the record stored in the datum
     const record = d3.select(this).datum(); 
     if (record) {
-      // Dispatch the record to be picked up by popup.js
       eventBus.dispatch("details:show", record);
     }
   });
 
+  // --- Resize Observer (for D3 responsiveness) ---
+  let ro;
+  function applyResize() {
+    // Only call redraw in the next animation frame for stability
+    window.requestAnimationFrame(redraw);
+  }
+  
+  const selfTarget = container.node();
+  if (selfTarget) { 
+    ro = new ResizeObserver(applyResize); 
+    ro.observe(selfTarget); 
+  }
+  
+  // Clean up observer on destruction (not defined here, but good practice)
+  
   // --- Event Listeners ---
   eventBus.on("waffle:selected", d => update(d));
   eventBus.on("year:filterChanged", () => update(null));
   
-  // ⬇️⬇️ [ADD] ฟังสัญญาณจาก circle/waffle เพื่ออัปเดตพาย (คงรูปแบบเดิม)
+  // ⬇️⬇️ ฟังสัญญาณจาก circle/waffle เพื่ออัปเดตพาย
   eventBus.on?.("waffle:select", ({ record }) => { if (record) update(record); });
   eventBus.on?.("pie:select",    ({ record }) => { if (record) update(record); });
 
@@ -181,5 +239,15 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
   // Initial call to display the latest record
   update(latestRecord); 
 
-  return { update };
+  // Call redraw once initially to set the correct size based on container
+  redraw();
+
+
+  function destroy() {
+    if (ro) ro.disconnect();
+    container.selectAll("*").remove();
+    currentData = null;
+  }
+
+  return { update, destroy };
 }

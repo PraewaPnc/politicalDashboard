@@ -3,7 +3,6 @@ import { fetchVoteData, forceRefreshVoteData, getPartyColors } from "./data.js";
 import { createWaffleChart } from "./waffleChart.js";
 import { createPieChart } from "./pieChart.js";
 import { createSideWaffleChart } from "./sideWaffleChart.js";
-import { createIcicleChart } from "./icicleChart.js";
 import { createDetailsPopup } from "./popup.js";
 import { createCirclePacking } from "./circlePacking.js";
 
@@ -104,11 +103,10 @@ async function loadData(force = false) {
     renderAll();
   } catch (err) {
     console.error("Failed to load data:", err);
-    if (loader) loader.textContent = "❌ Failed to load data (using cached/staging if available)";
+    if (loader) loader.textContent = "❌ Failed to load data (using cached if available)";
   }
 }
 
-/* ---------------- FILTERS ---------------- */
 /* ---------------- FILTERS ---------------- */
 function setupFilters() {
   // YEAR DROPDOWN CLICK HANDLER

@@ -1,0 +1,22 @@
+{
+  "name": "data-ingestion-pipeline",
+  "version": "1.0.0",
+  "description": "Server-side pipeline for fetching, processing, and caching dashboard data.",
+  "main": "pipeline.js",
+  "scripts": {
+    "start": "node pipeline.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "graphql",
+    "cache",
+    "pipeline",
+    "node"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "fs-extra": "^11.2.0",
+    "node-fetch": "^2.6.1"
+  }
+}
