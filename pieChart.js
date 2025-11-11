@@ -53,6 +53,7 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
   const titleContainer = chartWrapper
     .append("div")
     .attr("class", "pie-title")
+    .style("display", "none")     // Hidden until data is set
     .style("text-align", "center")
     .style("font-size", "1.05rem")
     .style("font-weight", "700")
@@ -136,12 +137,12 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
     }
 
     // --- Case 2: Record selected (or latestRecord is now set) ---
-    titleContainer
-      .html(
-        `<p class="pie-title-text text-body link-offset-3 link-underline-opacity-0">
-        ${record.title}<span class="pie-date-text text-body-secondary"> — ${record.dateStr}</span></p>`
-      )
-      .datum(record);
+    // titleContainer
+    //   .html(
+    //     `<p class="pie-title-text text-body link-offset-3 link-underline-opacity-0">
+    //     ${record.title}<span class="pie-date-text text-body-secondary"> — ${record.dateStr}</span></p>`
+    //   )
+    //   .datum(record);
 
     currentData = Object.entries(
       record.categoryPercentages || {
@@ -205,12 +206,12 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
   }
 
   // --- Click handler for the title ---
-  titleContainer.on("click", function() {
-    const record = d3.select(this).datum(); 
-    if (record) {
-      eventBus.dispatch("details:show", record);
-    }
-  });
+  // titleContainer.on("click", function() {
+  //   const record = d3.select(this).datum(); 
+  //   if (record) {
+  //     eventBus.dispatch("details:show", record);
+  //   }
+  // });
 
   // --- Resize Observer (for D3 responsiveness) ---
   let ro;
