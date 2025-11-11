@@ -1,5 +1,7 @@
 // waffleChart.js
  
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+ 
 export function createWaffleChart(containerSelector, records, eventBus) {
   const bus = eventBus ?? createMiniBus(); // [ADDED]
   const container = d3.select(containerSelector);
@@ -15,15 +17,14 @@ export function createWaffleChart(containerSelector, records, eventBus) {
     .text(`การเข้าร่วมลงมติรายเดือน ปี ${currentYear}`);
  
   const getRecordId = (d) => `${d.dateStr || ''}-${d.title || ''}`;
-
-
+ 
   // [NEW] key ที่เชื่อมกับ circle/pie (id > vote_event_id > title)
   const getCircleKey = (d) =>
     d?.Bill?.id ?? d?.id ?? d?.billId ?? d?.vote_event_id ?? d?.title ?? d?.Bill?.title;
  
   const latestRecord = records.slice().sort((a, b) => {
     const dateCompare = (b.dateStr || "").localeCompare(a.dateStr || "");
-    return dateCompare !== 0 ? dateCompare : b.title.localeCompare(a.title);
+    return dateCompare !== 0 ? dateCompare : b.title.localeCompare(b.title);
   })[0];
  
   let selectedRecordId = latestRecord ? getRecordId(latestRecord) : null;
@@ -70,11 +71,18 @@ console.table(stats);  // <-- ดูผลใน browser console
   const countsPerMonth = Array.from({ length: 12 }, (_, i) =>
     (recordsByMonth.get(i + 1) || []).length
   );
-  const maxPerRow = Math.max(1, ...countsPerMonth);
+  
+  // NOTE: maxPerRow ถูกคำนวณจากข้อมูลที่ถูก filter แล้ว แต่เราจะใช้ค่าคงที่สำหรับ viewBox
+  // const maxPerRow = Math.max(1, ...countsPerMonth); 
+  
+  // ✅ [FIXED FOR STABLE SCALE] กำหนดจำนวนสี่เหลี่ยมสูงสุดตายตัวสำหรับคำนวณ viewBox
+  const FIXED_MAX_SQUARES_PER_ROW = 25; 
  
   // ✅ บังคับขนาดขั้นต่ำเพื่อให้ legend แสดงผลได้เสมอ
   const MIN_CHART_WIDTH = 400; // Fixed internal drawing width
-  const DYNAMIC_DRAW_WIDTH = labelWidth + maxPerRow * (cellSize + gap) + 40;
+  
+  // [ADJUSTED] ใช้ค่าคงที่ FIXED_MAX_SQUARES_PER_ROW ในการคำนวณ INTERNAL_WIDTH
+  const DYNAMIC_DRAW_WIDTH = labelWidth + FIXED_MAX_SQUARES_PER_ROW * (cellSize + gap) + 40; 
   const INTERNAL_WIDTH = Math.max(DYNAMIC_DRAW_WIDTH, MIN_CHART_WIDTH);
  
   const legendHeight = 40;
@@ -82,10 +90,8 @@ console.table(stats);  // <-- ดูผลใน browser console
   
   // --- START RESPONSIVENESS CHANGES ---
   const svg = container.append("svg")
-    // REMOVED: .attr("width", chartWidth)
-    // REMOVED: .attr("height", height)
     .attr("viewBox", `0 0 ${INTERNAL_WIDTH} ${INTERNAL_HEIGHT}`)
-    .attr("preserveAspectRatio", "xMidYMid meet");
+    .attr("preserveAspectRatio", "xMinYMin meet"); 
   // --- END RESPONSIVENESS CHANGES ---
  
  
