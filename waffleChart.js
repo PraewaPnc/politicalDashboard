@@ -24,7 +24,7 @@ export function createWaffleChart(containerSelector, records, eventBus) {
  
   const latestRecord = records.slice().sort((a, b) => {
     const dateCompare = (b.dateStr || "").localeCompare(a.dateStr || "");
-    return dateCompare !== 0 ? dateCompare : b.title.localeCompare(b.title);
+    return dateCompare !== 0 ? dateCompare : b.title.localeCompare(a.title);
   })[0];
  
   let selectedRecordId = latestRecord ? getRecordId(latestRecord) : null;
