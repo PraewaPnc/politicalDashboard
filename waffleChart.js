@@ -44,7 +44,7 @@ export function createWaffleChart(containerSelector, records, eventBus) {
  
 console.table(stats);  // <-- ดูผลใน browser console
   const gap = 4;
-  const labelWidth = 78;
+  const labelWidth = 100;
   const rows = 12;
  
     const monthNames = [
