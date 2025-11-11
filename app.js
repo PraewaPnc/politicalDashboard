@@ -12,6 +12,7 @@ let currentYear = null;
 let currentParty = null;
 let pieChartInstance = null;
 let sideWaffleChartInstance = null;
+let circleAPI = null;
 
 /* ---------------- EventBus ---------------- */
 class EventBus {
@@ -390,15 +391,25 @@ function renderAll() {
   const squareActive = document.getElementById("shapeSquare")?.classList.contains("active");
   sideWaffleChartInstance?.setShape?.(squareActive ? "square" : "person");
 
-  // ⬇️ Zoomable circle packing
-console.log("CirclePacking records:", allRecords);
-const circleAPI = createCirclePacking("#circlePacking", allRecords, PARTY_COLORS, bus);
- 
-// ให้ waffle chart ส่ง title เข้ามา แล้วสั่ง zoom ไปยัง พ.ร.บ. นั้น
-bus.on("waffle:select", ({ title }) => circleAPI.zoomToBillTitle(title));
- 
-// ยังต้องบอกปีให้ทุก chart รับรู้เหมือนเดิม
-bus.dispatch("year:filterChanged", currentYear);
+  // 4) ZOOMABLE CIRCLE PACKING  ✅ (แก้บล็อกนี้)
+  console.log("CirclePacking records:", allRecords);
+
+  if (!circleAPI) {
+    // สร้างครั้งแรก
+    circleAPI = createCirclePacking("#circlePacking", allRecords, PARTY_COLORS, bus);
+
+    // ผูก event จาก waffle → circlePacking แค่ครั้งเดียว
+    bus.on("waffle:select", ({ billId, title }) => {
+      const key = billId ?? title;  // รองรับทั้ง billId และ title
+      circleAPI?.setActive?.(key);  // ใช้ API ที่มีจริงเพื่อไฮไลต์ (ไม่ error)
+    });
+  } else {
+    // ครั้งต่อไปให้แค่อัปเดตข้อมูล (เมื่อปีเปลี่ยน)
+    circleAPI.update(allRecords);
+  }
+
+  // แจ้งปีให้ทุกคอมโพเนนต์ที่ฟังอยู่
+  bus.dispatch("year:filterChanged", currentYear);
 }
 
 /* ---------------- START ---------------- */
