@@ -1,18 +1,20 @@
 // circlePacking.js
 // Zoomable circle packing + interaction กับ Waffle/Pie ผ่าน event bus
-// - กลุ่มผลโหวต 3 วง: "ผ่าน" / "ไม่ผ่าน" / "N/A"
+// - กลุ่มผลโหวต 3 วง: "ผ่าน" / "ไม่ผ่าน" / "N/A(รอรวบรวมผล)"
 // - ชั้นถัดไปแยก "ปี"
-// - วงในสุด (leaf = 1 พ.ร.บ./เรื่อง) มีขนาดตาม |agree_count - disagree_count|
-// - คลิกใบ (leaf): "ไม่ซูม" แต่ไฮไลต์ตัวเอง + ส่งสัญญาณให้ Waffle active (waffle:select)
-// - Waffle จะส่งต่อ (waffle:selected) ให้ Pie เปลี่ยนตาม (รูปแบบเดิม)
-// - รับ event จาก Waffle เพื่อไฮไลต์ (เทาอย่างอื่น) โดยไม่ซูม
-// - [NEW - YEAR FILTER] เมื่อปีเปลี่ยน จะทำให้ปีที่ถูกเลือกแสดง “สีปกติ” และปีอื่น ๆ เป็น “สีเทา”
+// - วงในสุด (leaf = 1 พ.ร.บ./เรื่อง) มีขนาดตาม |agree_count - disagree_count| (Quantile buckets)
+// - คลิกใบ (leaf): ไม่ซูม แต่ไฮไลต์ + ส่งสัญญาณให้ Waffle (waffle:select)
+// - YEAR FILTER: ปีที่เลือกเป็นสีปกติ ปีอื่นเป็นเทา
+// - TITLE BAR: หัวข้อ "สถานะการลงมติ" + แสดงชื่อเรื่องที่เลือก (คลิกเพื่อ popup: details:show)
+// - LEGEND (MINIMAL): วางด้านล่างกราฟ วงเล็ก → ลูกศร → วงใหญ่ (ผลต่าง น้อย → มาก)
 
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS, bus, options = {}) {
-  // REMOVED: matchTo is no longer used for size matching, only for initial check
   const keepSquare = options.keepSquare ?? true;
+
+  // [LEGEND] โหมดแสดงผล (ค่าเริ่มต้น = minimal)
+  const legendMode = options.legendMode ?? "minimal";
 
   /* ---------------- Getters (รองรับหลาย schema) ---------------- */
   const getters = {
@@ -44,8 +46,12 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
     return NA;
   }
 
+  function displayResultName(key) {
+    return key === NA ? "รอรวบรวมผล" : key;
+  }
+
   /* ---------------- Build hierarchy: root → result → year → leaf ---------------- */
-  function buildHierarchy(records, sizeScale) {
+  function buildHierarchy(records, valueMapper) {
     const byResult = new Map([[PASS, new Map()], [FAIL, new Map()], [NA, new Map()]]);
     for (const r of records) {
       const res   = normalizeResult(getters.result(r));
@@ -53,37 +59,68 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
       const title = getters.title(r);
       const id    = getters.id(r);
       const diff  = Math.abs((+getters.agree(r) || 0) - (+getters.disagree(r) || 0));
-      const weight = sizeScale ? sizeScale(diff) : 1;
+      const weight = valueMapper ? valueMapper(diff) : 1;
 
       if (!byResult.get(res).has(yr)) byResult.get(res).set(yr, []);
       byResult.get(res).get(yr).push({ name: title, id, value: weight, raw: r, diff });
     }
 
     const resultChildren = [];
-    for (const [resName, byYear] of byResult.entries()) {
+    for (const [resKey, byYear] of byResult.entries()) {
       const years = Array.from(byYear.keys()).sort((a,b)=>{
         const na=+a, nb=+b;
-        if (!isNaN(na) && !isNaN(nb)) return nb - na; // ปีใหม่ก่อน
+        if (!isNaN(na) && !isNaN(nb)) return nb - na;
         return String(b).localeCompare(String(a));
       });
-      resultChildren.push({ name: resName, children: years.map(y => ({ name: String(y), children: byYear.get(y) })) });
+      resultChildren.push({
+        name: displayResultName(resKey),
+        key:  resKey,
+        children: years.map(y => ({ name: String(y), children: byYear.get(y) }))
+      });
     }
     return { name: "Votes", children: resultChildren };
   }
 
   /* ---------------- Colors ---------------- */
-  const COLOR_RESULT = { [PASS]: "#cfdd9d", [FAIL]: "#f8cae4", [NA]: "#e0e0e0" }; // ชั้นผลโหวต (depth 1)
-  const COLOR_YEAR   = { [PASS]: "#a5c4a8", [FAIL]: "#ea6993", [NA]: "#b0b0b0" }; // ชั้นปี (depth 2)
-  const COLOR_LEAF   = { [PASS]: "#447a5f", [FAIL]: "#832d51", [NA]: "#7f7f7f" }; // ใบ
+  // (คงค่าสีตามไฟล์ปัจจุบันของคุณ)
+  const COLOR_RESULT = { [PASS]: "#cfdd9d", [FAIL]: "#f8cae4", [NA]: "#b8dcee" };
+  const COLOR_YEAR   = { [PASS]: "#a5c4a8", [FAIL]: "#ea6993", [NA]: "#7ea3b8" };
+  const COLOR_LEAF   = { [PASS]: "#447a5f", [FAIL]: "#832d51", [NA]: "#234458" };
   const GREY_LIGHT   = "#e6e6e6";
   const GREY_LEAF    = "#c9c9c9";
-  const GREY_YEAR    = "#d8d8d8"; // [NEW - YEAR FILTER] สีเทาสำหรับวงปีที่ไม่ใช่ปีที่เลือก
+  const GREY_YEAR    = "#d8d8d8";
 
-  /* ---------------- Container & Size (UPDATED) ---------------- */
+  /* ---------------- BUCKETS helper: radius -> value (พื้นที่) ---------------- */
+  const r2v = r => r * r;
+
+  /* ---------------- Container & Title ---------------- */
   const container = d3.select(containerSelector);
   container.selectAll("*").remove();
 
-  // Initial size check
+  const titleDiv = container.append("div")
+    .style("display","flex")
+    .style("flex-direction","column")
+    .style("align-items","flex-start")
+    .style("gap","4px")
+    .style("margin-bottom","8px");
+
+  const mainTitleEl = titleDiv.append("div")
+    .text("สถานะการลงมติ")
+    .style("text-align","left")
+    .style("font","600 20px/1.4 sans-serif");
+
+  const selectedTitleEl = titleDiv.append("div")
+    .text("")
+    .style("font","500 15px/1.3 sans-serif")
+    .style("opacity","0.85")
+    .style("cursor","pointer")
+    .attr("class","cp-selected-title");
+
+  selectedTitleEl.on("click", function() {
+    const rec = d3.select(this).datum();
+    if (rec) localBus.dispatch("details:show", rec);
+  });
+
   function getContainerSize() {
     const refEl = container.node();
     const w = refEl?.clientWidth || 400;
@@ -92,36 +129,127 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
     return { W: size, H: keepSquare ? size : h };
   }
   let { W, H } = getContainerSize();
-  
-  // Use viewBox for responsiveness
+
   const svg = container.append("svg")
     .attr("viewBox", `${-W/2} ${-H/2} ${W} ${H}`)
     .attr("preserveAspectRatio", "xMidYMid meet")
-    .style("display","block").style("cursor","pointer");
-    // Removed fixed width/height attributes from SVG
+    .style("display","block")
+    .style("cursor","pointer");
 
   const gCircles    = svg.append("g");
   const gResultLbls = svg.append("g").attr("pointer-events","none");
   const gYearLbls   = svg.append("g").attr("pointer-events","none");
+
+  /* ---------------- Legend (Minimal) — Small centered version ---------------- */
+if (legendMode === "minimal") {
+  const bottomLegend = container.append("div")
+    .attr("class", "cp-size-legend-bottom")
+    .style("display", "flex")
+    .style("flex-direction", "column")
+    .style("gap", "3px")
+    .style("align-items", "center")  // อยู่ตรงกลาง
+    .style("margin-top", "1px")
+    .style("color", "#555")
+    .style("font-size", "12px");     // ปรับเล็กให้ match ขนาดวงกลม
+
+  bottomLegend.append("div")
+    .style("opacity", 0.9)
+    .text("ขนาดวงกลม = ระดับความทิ้งห่างของผลโหวต (น้อย → มาก)");
+
+  const row = bottomLegend.append("div")
+    .style("display", "flex")
+    .style("align-items", "center")
+    .style("gap", "4px");
+
+  const legendSvg2 = row.append("svg")
+    .attr("viewBox", "0 0 100 28")
+    .attr("preserveAspectRatio", "xMidYMid meet")
+    .style("width", "150px")
+    .style("height", "28px");
+
+  // สร้าง marker ลูกศรขนาดเล็ก
+  const arrowId = `cp-arrow-${Math.random().toString(36).slice(2,8)}`;
+  const defs = legendSvg2.append("defs");
+  defs.append("marker")
+    .attr("id", arrowId)
+    .attr("viewBox", "0 0 8 8")
+    .attr("refX", "7")
+    .attr("refY", "4")
+    .attr("markerWidth", "4")   // เล็กลงจาก 6 → 4
+    .attr("markerHeight", "4")
+    .attr("orient", "auto-start-reverse")
+    .append("path")
+    .attr("d", "M 0 0 L 8 4 L 0 8 z")
+    .attr("fill", "#9e9e9e");
+
+  // 🔹 ขนาดใหม่ตามที่ผู้ใช้กำหนด
+  const small = { cx: 18, cy: 8, r: 3 };
+  const large = { cx: 82, cy: 8, r: 7 };
+
+  // วงเล็ก
+  legendSvg2.append("circle")
+    .attr("cx", small.cx).attr("cy", small.cy).attr("r", small.r)
+    .attr("fill", "#bdbdbd").attr("stroke", "#9e9e9e").attr("opacity", 0.95);
+
+  // เส้นลูกศร (สั้นลง และตรงกลางพอดี)
+  legendSvg2.append("line")
+    .attr("x1", small.cx + small.r + 3)
+    .attr("y1", small.cy)
+    .attr("x2", large.cx - large.r - 3)
+    .attr("y2", large.cy)
+    .attr("stroke", "#9e9e9e")
+    .attr("stroke-width", 1.4)         // เส้นบางลง
+    .attr("marker-end", `url(#${arrowId})`);
+
+  // วงใหญ่
+  legendSvg2.append("circle")
+    .attr("cx", large.cx).attr("cy", large.cy).attr("r", large.r)
+    .attr("fill", "#bdbdbd").attr("stroke", "#9e9e9e").attr("opacity", 0.95);
+
+  // ป้ายใต้แต่ละวง
+  legendSvg2.append("text")
+    .attr("x", small.cx).attr("y", 25)
+    .attr("text-anchor", "middle")
+    .style("font", "500 12px sans-serif")
+    .style("fill", "#666")
+    .text("สูสี");
+
+  legendSvg2.append("text")
+    .attr("x", large.cx).attr("y", 25)
+    .attr("text-anchor", "middle")
+    .style("font", "500 12px sans-serif")
+    .style("fill", "#666")
+    .text("ชนะขาด");
+}
 
   /* ---------------- State ---------------- */
   let root, focus, view;
   const byId = new Map(), byTitle = new Map();
   let selectedKey = null;
   let selectedNode = null;
-  let currentYearFilter = null; // [NEW - YEAR FILTER] ปีที่ถูกเลือก (เช่น "2024"); null = ไม่กรองปี
+  let currentYearFilter = null;
+  let lastSelectedRecord = null;
 
-  /* ---------------- Compute ---------------- */
+  /* ---------------- Compute (Quantile Buckets) ---------------- */
   function compute(records) {
-    const diffs = (records ?? []).map(r => Math.abs((+getters.agree(r) || 0) - (+getters.disagree(r) || 0)));
-    const maxDiff = d3.max(diffs) || 0;
-    const sizeScale = d3.scaleSqrt().domain([0, maxDiff]).range([1, 30]);
+    const diffs = (records ?? []).map(r =>
+      Math.abs((+getters.agree(r) || 0) - (+getters.disagree(r) || 0))
+    );
 
-    const data = buildHierarchy(records ?? [], sizeScale);
+    let valueFromDiff;
+    if (!diffs.length) {
+      valueFromDiff = () => 1;
+    } else {
+      const rScale = d3.scaleQuantile()
+        .domain(diffs)
+        .range([10, 14, 18, 22, 26, 32]);
+      valueFromDiff = d => r2v(rScale(d));
+    }
 
-    // Update D3 pack layout size based on current W and H
-    root = d3.pack().size([W, H]).padding(3)(
-      d3.hierarchy(data).sum(d => d.value || 0).sort((a,b)=>b.value - a.value)
+    const data = buildHierarchy(records ?? [], valueFromDiff);
+
+    root = d3.pack().size([W, H]).padding(5)(
+      d3.hierarchy(data).sum(d => d.value || 0).sort((a,b)=> b.value - a.value)
     );
     focus = root;
     view  = [root.x, root.y, root.r * 2];
@@ -141,18 +269,18 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
   }
 
   /* ---------------- Helpers ---------------- */
-  function nodeResultName(n){
+  function nodeResultKey(n){
     if (!n) return null;
-    if (n.depth === 1) return n.data?.name;                    // ผ่าน/ไม่ผ่าน/N/A
-    if (n.depth === 2) return n.parent?.data?.name;
-    if (n.depth >= 3)  return n.parent?.parent?.data?.name;
+    if (n.depth === 1) return n.data?.key ?? n.data?.name;
+    if (n.depth === 2) return n.parent?.data?.key ?? n.parent?.data?.name;
+    if (n.depth >= 3)  return n.parent?.parent?.data?.key ?? n.parent?.parent?.data?.name;
     return null;
   }
 
-  function nodeYearName(n) {  // [NEW - YEAR FILTER] คืนชื่อปีของ node
+  function nodeYearName(n) {
     if (!n) return null;
-    if (n.depth === 2) return n.data?.name;            // node วงปี
-    if (n.depth >= 3)  return n.parent?.data?.name;    // ใบอยู่ใต้ปี → ปีคือชื่อ parent
+    if (n.depth === 2) return n.data?.name;
+    if (n.depth >= 3)  return n.parent?.data?.name;
     return null;
   }
 
@@ -164,36 +292,32 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
   }
 
   function fillColorFor(d) {
-    const res = nodeResultName(d);
+    const resKey = nodeResultKey(d);
 
-    // [NEW - YEAR FILTER] ถ้ามี year filter → ให้โหนดปีอื่นเป็นสีเทา
     if (currentYearFilter && d.depth >= 2) {
       const y = nodeYearName(d);
       if (String(y) !== String(currentYearFilter)) {
         return d.depth === 2 ? GREY_YEAR : GREY_LEAF;
-      }
+        }
     }
 
-    // (ส่วนเดิม) ยังไม่มีการเลือกใบ → ใช้สีปกติ
     if (!selectedNode) {
-      if (d.depth === 1) return (COLOR_RESULT[d.data.name] ?? GREY_LIGHT);
-      if (d.depth === 2) return (COLOR_YEAR[res] ?? GREY_LIGHT);
-      return (COLOR_LEAF[res] ?? "white");
+      if (d.depth === 1) return (COLOR_RESULT[resKey] ?? GREY_LIGHT);
+      if (d.depth === 2) return (COLOR_YEAR[resKey]   ?? GREY_LIGHT);
+      return (COLOR_LEAF[resKey]   ?? "white");
     }
 
-    // (ส่วนเดิม) มีใบที่เลือก → แสดงสีเฉพาะ path ของ selected (ผล→ปี→ใบ) ที่เหลือเป็นเทา
     const onPath = isAncestorOrSelf(d, selectedNode);
     if (!onPath) return d.depth >= 3 ? GREY_LEAF : GREY_LIGHT;
 
-    if (d.depth === 1) return (COLOR_RESULT[d.data.name] ?? GREY_LIGHT);
-    if (d.depth === 2) return (COLOR_YEAR[res] ?? GREY_LIGHT);
-    return (COLOR_LEAF[res] ?? "white");
+    if (d.depth === 1) return (COLOR_RESULT[resKey] ?? GREY_LIGHT);
+    if (d.depth === 2) return (COLOR_YEAR[resKey]   ?? GREY_LIGHT);
+    return (COLOR_LEAF[resKey]   ?? "white");
   }
 
   /* ---------------- Render ---------------- */
   function render() {
-    // 1. Re-run compute to update root based on current W/H
-    compute(allRecords); // Compute will re-calculate 'root' and 'view' based on current W/H
+    compute(allRecords);
 
     const nodes = root.descendants().slice(1);
 
@@ -208,21 +332,21 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
           .on("mouseout",  function(e,d){ d3.select(this).attr("stroke", d.depth>=3 ? "#999" : "none"); })
           .on("click", (event, d) => {
             if (!d.children) {
-              // คลิกใบ: ไม่ซูม / ไฮไลต์ / ส่งเรื่องไปให้ Waffle เลือก
               const key    = d.data?.id ?? d.data?.name;
               const record = d.data?.raw;
-              setActiveByKey(key); // ไฮไลต์ใน circle packing
-              localBus.dispatch("waffle:select", { billId: key, title: d.data?.name, record }); // สำคัญ
+              setActiveByKey(key);
+              localBus.dispatch("waffle:select", { billId: key, title: d.data?.name, record });
+              lastSelectedRecord = record || null;
+              selectedTitleEl.text(d.data?.name ?? "").datum(lastSelectedRecord);
               event.stopPropagation();
               return;
             }
-            // Node ภายใน (ผล/ปี) ยังซูมได้ตามปกติ
             if (focus !== d) { zoom(event, d); event.stopPropagation(); }
           })
       )
       .attr("fill", fillColorFor);
 
-    // tooltip ง่าย ๆ
+    // tooltip
     circles.selectAll("title").remove();
     circles.append("title").text(d => {
       if (!d.children) {
@@ -231,23 +355,25 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
         const b = getters.disagree(raw) || 0;
         return `${d.data.name}\nagree: ${a}\ndisagree: ${b}\ndiff: ${Math.abs(a-b)}`;
       }
+      if (d.depth === 1) return displayResultName(d.data?.key ?? d.data?.name) || "";
       return d.data?.name || "";
     });
 
-    // labels (ผล/ปี) อยู่นอกวง
     const OUT = 10;
     const resultNodes = nodes.filter(d => d.depth === 1);
     const yearNodes   = nodes.filter(d => d.depth === 2);
 
+    // ป้ายผลโหวต (ใช้ display name)
     gResultLbls.selectAll("text")
-      .data(resultNodes, d => d.data.name)
+      .data(resultNodes, d => d.data.key ?? d.data.name)
       .join("text")
       .attr("text-anchor","middle")
       .style("font","14px sans-serif")
       .style("font-weight","700")
       .style("fill","#333")
-      .text(d => d.data.name);
+      .text(d => displayResultName(d.data.key ?? d.data.name));
 
+    // ป้ายปี: แสดงตลอด
     const yearText = gYearLbls.selectAll("text")
       .data(yearNodes, d => d.data.name)
       .join("text")
@@ -255,9 +381,9 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
       .style("font","12px sans-serif")
       .style("font-weight","600")
       .style("fill","#222")
+      .style("display","inline")
       .text(d => d.data.name);
 
-    // [UPDATED - YEAR FILTER] จาง label ของปีที่ไม่ได้ถูกเลือก
     yearText.style("opacity", d => {
       if (!currentYearFilter) return 1;
       return String(d.data?.name) === String(currentYearFilter) ? 1 : 0.35;
@@ -265,9 +391,8 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
 
     svg.on("click", (event) => zoom(event, root));
 
-    // UPDATE: viewBox must be re-set if W/H changed (which it will if applyResize was called)
     svg.attr("viewBox", `${-W/2} ${-H/2} ${W} ${H}`);
-    zoomTo([focus.x, focus.y, focus.r * 2]); // Initial draw
+    zoomTo([focus.x, focus.y, focus.r * 2]);
 
     function positionAll(v) {
       const k = W / v[2];
@@ -276,7 +401,6 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
         .attr("transform", d => `translate(${(d.x - v[0]) * k}, ${(d.y - v[1]) * k})`)
         .attr("r", d => d.r * k);
 
-      // result labels: โชว์เมื่อ focus=root
       gResultLbls.selectAll("text")
         .attr("transform", d => {
           const x = (d.x - v[0]) * k;
@@ -285,15 +409,13 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
         })
         .style("display", () => (focus === root ? "inline" : "none"));
 
-      // year labels: โชว์เมื่อ focus เป็น result
       gYearLbls.selectAll("text")
         .attr("transform", d => {
           const x = (d.x - v[0]) * k;
           const y = (d.y - v[1]) * k - d.r * k - OUT;
           return `translate(${x},${y})`;
         })
-        .style("display", d => (d.parent === focus ? "inline" : "none"))
-        // [UPDATED - YEAR FILTER] รีเฟรช opacity ของ label เมื่อมีการ zoom
+        .style("display","inline")
         .style("opacity", d => {
           if (!currentYearFilter) return 1;
           return String(d.data?.name) === String(currentYearFilter) ? 1 : 0.35;
@@ -303,7 +425,7 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
     function zoomTo(v) { view = v; positionAll(v); }
   }
 
-  /* ---------------- Zoom (เฉพาะคลิก node ภายใน) ---------------- */
+  /* ---------------- Zoom ---------------- */
   function zoom(event, d) {
     const transition = svg.transition()
       .duration(event?.altKey ? 7500 : 750)
@@ -333,8 +455,7 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
               const y = (n.y - v[1]) * k - n.r * k - OUT;
               return `translate(${x},${y})`;
             })
-            .style("display", n => (n.parent === d ? "inline" : "none"))
-            // [UPDATED - YEAR FILTER] รีเฟรช opacity ของ label เมื่อมีการ zoom
+            .style("display","inline")
             .style("opacity", n => {
               if (!currentYearFilter) return 1;
               return String(n.data?.name) === String(currentYearFilter) ? 1 : 0.35;
@@ -346,8 +467,7 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
 
   /* ---------------- Public API & Event wiring ---------------- */
   function update(records) {
-    allRecords = records; // Update the internal record list
-    // Size is checked/updated inside applyResize, then render is called.
+    allRecords = records;
     applyResize(true);
   }
 
@@ -357,54 +477,59 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
       ? (byId.get(String(selectedKey)) ?? byTitle.get(String(selectedKey)) ?? null)
       : null;
     gCircles.selectAll("circle").attr("fill", fillColorFor);
+
+    const nameForLabel =
+      selectedNode?.data?.name ??
+      (selectedKey != null ? String(selectedKey) : "");
+    lastSelectedRecord = selectedNode?.data?.raw ?? lastSelectedRecord ?? null;
+    selectedTitleEl.text(nameForLabel || "").datum(lastSelectedRecord || null);
   }
 
   const localBus = bus ?? createMiniBus();
 
-  // รับจาก waffle → ไฮไลต์ (ไม่ซูม)
-  localBus.on?.("waffle:select", ({ billId, title }) => {
+  localBus.on?.("waffle:select", ({ billId, title, record }) => {
     const key = billId ?? title;
     setActiveByKey(key);
+    lastSelectedRecord = record || lastSelectedRecord || null;
+    selectedTitleEl.text(title ?? String(key) ?? "").datum(lastSelectedRecord || null);
   });
-  localBus.on?.("waffle:clear", () => setActiveByKey(null));
 
-  // [NEW - YEAR FILTER] เมื่อปีเปลี่ยน → อัปเดต year filter + repaint สี/label
+  localBus.on?.("waffle:clear", () => {
+    setActiveByKey(null);
+    lastSelectedRecord = null;
+    selectedTitleEl.text("").datum(null);
+  });
+
   localBus.on?.("year:filterChanged", (y) => {
     currentYearFilter = (y == null || y === "" ? null : String(y));
     gCircles.selectAll("circle").attr("fill", fillColorFor);
-    // จัดการ label ปีให้จาง/ชัดตามปีที่เลือก
     gYearLbls.selectAll("text").style("opacity", d => {
       if (!currentYearFilter) return 1;
       return String(d.data?.name) === String(currentYearFilter) ? 1 : 0.35;
     });
   });
 
-  // [UPDATED] Resize Observer: listens to the *container* element itself
+  // Resize
   let ro;
   function applyResize(forceRender = false) {
     const size = getContainerSize();
     if (!forceRender && size.W === W && size.H === H) return;
-    
-    W = size.W; 
-    H = size.H;
-    
-    // 1. Update the viewBox to the new dimensions
-    svg.attr("viewBox", `${-W/2} ${-H/2} ${W} ${H}`);
 
-    // 2. Recompute and render with the new dimensions
-    render(); 
+    W = size.W;
+    H = size.H;
+
+    svg.attr("viewBox", `${-W/2} ${-H/2} ${W} ${H}`);
+    render();
   }
-  
-  // Attach ResizeObserver to the container
+
   const selfTarget = container.node();
-  if (selfTarget) { 
-    ro = new ResizeObserver(entries => {
-      // D3 must draw in the next frame, or it may crash/be unstable
+  if (selfTarget) {
+    ro = new ResizeObserver(() => {
       window.requestAnimationFrame(() => applyResize());
-    }); 
-    ro.observe(selfTarget); 
+    });
+    ro.observe(selfTarget);
   }
-  
+
   // Initial draw
   render();
 
@@ -418,7 +543,7 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
   return { update, setActive: setActiveByKey, destroy, bus: localBus, resizeNow: applyResize };
 }
 
-/* ---------------- Mini Event Bus (กรณีไม่ส่ง bus เข้ามา) ---------------- */
+/* ---------------- Mini Event Bus ---------------- */
 function createMiniBus() {
   const map = new Map();
   return {
