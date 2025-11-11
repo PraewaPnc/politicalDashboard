@@ -102,7 +102,7 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
     .style("flex-direction","column")
     .style("align-items","flex-start")
     .style("gap","4px")
-    .style("margin-bottom","8px");
+    .style("margin-bottom","2px");
 
   const mainTitleEl = titleDiv.append("div")
     .text("สถานะการลงมติ")
@@ -149,7 +149,7 @@ if (legendMode === "minimal") {
     .style("gap", "3px")
     .style("align-items", "center")  // อยู่ตรงกลาง
     .style("margin-top", "1px")
-    .style("color", "#555")
+    .style("color", "currentColor")
     .style("font-size", "12px");     // ปรับเล็กให้ match ขนาดวงกลม
 
   bottomLegend.append("div")
@@ -180,7 +180,7 @@ if (legendMode === "minimal") {
     .attr("orient", "auto-start-reverse")
     .append("path")
     .attr("d", "M 0 0 L 8 4 L 0 8 z")
-    .attr("fill", "#9e9e9e");
+    .attr("fill", "currentColor");
 
   // 🔹 ขนาดใหม่ตามที่ผู้ใช้กำหนด
   const small = { cx: 18, cy: 8, r: 3 };
@@ -197,7 +197,7 @@ if (legendMode === "minimal") {
     .attr("y1", small.cy)
     .attr("x2", large.cx - large.r - 3)
     .attr("y2", large.cy)
-    .attr("stroke", "#9e9e9e")
+    .attr("stroke", "currentColor")
     .attr("stroke-width", 1.4)         // เส้นบางลง
     .attr("marker-end", `url(#${arrowId})`);
 
@@ -211,14 +211,14 @@ if (legendMode === "minimal") {
     .attr("x", small.cx).attr("y", 25)
     .attr("text-anchor", "middle")
     .style("font", "500 12px sans-serif")
-    .style("fill", "#666")
+    .style("fill", "currentColor")
     .text("สูสี");
 
   legendSvg2.append("text")
     .attr("x", large.cx).attr("y", 25)
     .attr("text-anchor", "middle")
     .style("font", "500 12px sans-serif")
-    .style("fill", "#666")
+    .style("fill", "currentColor")
     .text("ชนะขาด");
 }
 
