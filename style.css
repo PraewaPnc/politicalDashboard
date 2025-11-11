@@ -5,7 +5,7 @@ body {
   font-family: "Inter", "Segoe UI", Arial, sans-serif;
   margin: 0;
   background-image: url('bg2.png');
-  /* background-size: cover; */
+  background-size: auto;
   background-attachment: fixed;
   /* background-color: #fafafa; */
   color: #333;
@@ -85,6 +85,8 @@ header .subtitle {
   /* Ensure the chart takes the full width of its Bootstrap column */
   width: 100%; 
   height: auto;
+  /* max-height: 200vh; Limits max height to 60% of viewport height */
+  /* overflow-y: auto; Ensures scrollbar appears if content overflows max-height */
 }
 
 /* Chart-specific sizes */
@@ -93,10 +95,10 @@ header .subtitle {
 #pieChart,
 #sideWaffleWrap,
 #circlePacking {
-  /* width: 600px; <-- REMOVED */ 
   min-height: 350px; /* Reduced min-height slightly for better mobile fit */
   display: flex;
   flex-direction: column;
+  /* height: 450px; */
 }
 
 #sideWaffleChart {
@@ -408,6 +410,36 @@ select {
 .pie-title:hover .pie-date-text {
     text-decoration: none;
 }
+
+
+/* =========================================================
+   CIRCLE PACKING — SELECTED TITLE (click to open popup)
+========================================================= */
+.cp-selected-title {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  transition: color 0.2s ease-in-out, opacity 0.2s;
+}
+
+.cp-selected-title:hover {
+  color: var(--bs-emphasis-color); /* รองรับโหมดสีของ Bootstrap */
+}
+
+/* เมื่อยังไม่มีรายการถูกเลือก: ปิดคลิก + จางลง
+   (สลับคลาสนี้จาก JS: selectedTitleEl.classed('is-empty', !record)) */
+.cp-selected-title.is-empty {
+  pointer-events: none;
+  opacity: 0.55;
+  text-decoration: none;
+  cursor: default;
+}
+
+/* จูนขนาดตัวอักษรให้สัมพันธ์กับหัวข้อหลักด้านบน */
+#circlePacking .cp-selected-title {
+  font-size: 0.85rem;
+}
+
 /* =========================================================
    POPUP MODAL
 ========================================================= */
