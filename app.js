@@ -344,23 +344,23 @@ function renderTreemap(record, tooltip) {
 /* ---------------- SHAPE TOGGLE ---------------- */
 function setupShapeToggle() {
   const squareBtn = document.getElementById("shapeSquare");
-  const personBtn = document.getElementById("shapePerson");
+  const circleBtn = document.getElementById("shapeCircle");
 
-  if (!squareBtn || !personBtn) return;
+  if (!squareBtn || !circleBtn) return;
 
   // Default
-  if (!squareBtn.classList.contains("active") && !personBtn.classList.contains("active")) {
+  if (!squareBtn.classList.contains("active") && !circleBtn.classList.contains("active")) {
     squareBtn.classList.add("active");
   }
 
   squareBtn.addEventListener("click", () => {
     squareBtn.classList.add("active");
-    personBtn.classList.remove("active");
+    circleBtn.classList.remove("active");
     renderAll();
   });
 
-  personBtn.addEventListener("click", () => {
-    personBtn.classList.add("active");
+  circleBtn.addEventListener("click", () => {
+    circleBtn.classList.add("active");
     squareBtn.classList.remove("active");
     renderAll();
   });
@@ -389,7 +389,7 @@ function renderAll() {
     
   }
   const squareActive = document.getElementById("shapeSquare")?.classList.contains("active");
-  sideWaffleChartInstance?.setShape?.(squareActive ? "square" : "person");
+  sideWaffleChartInstance?.setShape?.(squareActive ? "square" : "cicle");
 
   // 4) ZOOMABLE CIRCLE PACKING  ✅ (แก้บล็อกนี้)
   console.log("CirclePacking records:", allRecords);
