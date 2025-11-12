@@ -1,7 +1,7 @@
 // sideWaffleChart.js
 // ใช้ <symbol id="personIcon"> และ <use> โดยใช้ CSS 'color' เป็นสีของพรรคการเมือง
 
-export function createSideWaffleChart(containerSelector, eventBus, colorByParty, latestRecord, totalMPs = 500) {
+export function createSideWaffleChart(containerSelector, eventBus, colorByParty, latestRecord, totalMPs = 700) {
   const container = d3.select(containerSelector);
   container.selectAll("*").remove();
 
@@ -11,14 +11,22 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     .attr("class", "side-waffle-chart-wrapper")
     .style("width", "100%")
     .style("height", "100%")
-    .style("overflow", "hidden")
+    .style("display", "flex")
+    .style("flex-direction", "column")
+    .style("justify-content", "space-between"); // ✅ แทน flex-start
+
+  // --- Chart Body (title + svg) ---
+  const chartBody = wrapper
+    .append("div")
+    .attr("class", "side-waffle-chart-body")
     .style("display", "flex")
     .style("flex-direction", "column")
     .style("align-items", "center")
-    .style("justify-content", "flex-start");
+    .style("flex", "1 1 auto")
+    .style("overflow", "hidden");
 
   // --- Chart Title ---
-  wrapper
+  chartBody
     .append("div")
     .attr("class", "side-waffle-chart-title text-body")
     .style("text-align", "left")
@@ -29,7 +37,7 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     .text("การโหวตแบ่งตามพรรคการเมือง");
 
   // --- SVG base ---
-  const svg = wrapper
+  const svg = chartBody
     .append("svg")
     .attr("width", "100%")
     .attr("height", "auto")
@@ -94,7 +102,8 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     if (total === 0) return;
 
     // --- สร้าง cells ---
-    const factor = 1;
+    const maxCells = 200;
+    const factor = Math.max(1, Math.ceil(total / maxCells));
     const cells = [];
     top.forEach(([party, count]) => {
       const cellCount = Math.max(1, Math.round(count / factor));
@@ -102,7 +111,7 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     });
 
     // --- Layout parameters ---
-    const cols = 25;
+    const cols = 20;
     const cellSize = 10;
     const gap = 1.5;
     const width = cols * (cellSize + gap);
@@ -157,12 +166,13 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     wrapper
       .append("div")
       .attr("class", "side-legend text-body")
-      .style("margin-top", "8px")
+      .style("margin-top", "4px")
       .style("max-width", "100%")
       .style("overflow", "hidden")
       .html(() => {
         return (
-          `<div class="text-body" style="font-weight:600; margin-bottom:6px;">${lastCategory} — total ${total}</div>` +
+          `<div class="text-body" style="font-weight:600; margin-bottom:6px;">${lastCategory} — total ${total} 
+          <i style="font-size:11px;">  ** 1ช่อง ≈ ${factor} โหวต</i></div>` +
           top
             .map(([party, count]) => {
               const color = colorByParty[party] || "#bbb";
