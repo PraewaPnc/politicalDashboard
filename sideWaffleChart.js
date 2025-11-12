@@ -1,27 +1,44 @@
 // sideWaffleChart.js
-// Uses inline <symbol id="personIcon"> and <use> with CSS 'color' for party color
+// ใช้ <symbol id="personIcon"> และ <use> โดยใช้ CSS 'color' เป็นสีของพรรคการเมือง
 
 export function createSideWaffleChart(containerSelector, eventBus, colorByParty, latestRecord, totalMPs = 500) {
   const container = d3.select(containerSelector);
   container.selectAll("*").remove();
 
-  // --- NEW: Add Chart Title ---
-  container.append("div")
+  // --- Container Wrapper ---
+  const wrapper = container
+    .append("div")
+    .attr("class", "side-waffle-chart-wrapper")
+    .style("width", "100%")
+    .style("height", "100%")
+    .style("overflow", "hidden")
+    .style("display", "flex")
+    .style("flex-direction", "column")
+    .style("align-items", "center")
+    .style("justify-content", "flex-start");
+
+  // --- Chart Title ---
+  wrapper
+    .append("div")
     .attr("class", "side-waffle-chart-title text-body")
     .style("text-align", "left")
-    .style("font-size", "1.2rem") // h4 size
+    .style("width", "100%")
+    .style("font-size", "1.2rem")
     .style("font-weight", "bold")
-    .style("margin-bottom", "10px")
+    .style("margin-bottom", "4px")
     .text("การโหวตแบ่งตามพรรคการเมือง");
-  // ---------------------------
 
-  // Create SVG and defs for person icon (uses currentColor)
-  const svg = container
+  // --- SVG base ---
+  const svg = wrapper
     .append("svg")
     .attr("width", "100%")
-    .attr("height", "100%")
-    .attr("viewBox", "0 0 240 240");
+    .attr("height", "auto")
+    .attr("viewBox", "0 0 240 240")
+    .attr("preserveAspectRatio", "xMidYMid meet")
+    .style("overflow", "hidden")
+    .style("display", "block");
 
+  // --- Icon Definitions ---
   const defs = svg.append("defs");
   defs
     .append("symbol")
@@ -33,27 +50,27 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
       <path d="M8 56c0-13 11-24 24-24s24 11 24 24" fill="currentColor"></path>
     `);
 
-  // Internal state
-  let lastRecord = latestRecord || null; 
-  let lastCategory = lastRecord ? "agree" : null; 
+  // --- Internal state ---
+  let lastRecord = latestRecord || null;
+  let lastCategory = lastRecord ? "agree" : null;
   let selectedParty = null;
-  let shape = "square"; // or "person"
+  let shape = "square"; // หรือ "person"
 
-  // Setter for shape type and trigger render
+  // --- Setter for shape ---
   function setShape(newShape) {
     shape = newShape;
     render();
   }
 
+  // --- Render function ---
   function render() {
-    // Clear previous chart elements except defs
+    // เคลียร์กราฟเก่า (เว้น defs)
     svg.selectAll("*:not(defs)").remove();
-    // Remove old legend
-    d3.select(containerSelector).selectAll(".side-legend").remove();
+    wrapper.selectAll(".side-legend").remove();
 
     if (!lastRecord || !lastCategory) return;
 
-    // Filter votes by category (case-insensitive)
+    // กรองข้อมูลตาม category
     const votes = (lastRecord.votes || []).filter(v => {
       const opt = (v.option_en || "").toLowerCase();
       if (lastCategory === "agree") return opt.includes("agree");
@@ -65,11 +82,9 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
       return false;
     });
 
-    // Group votes count by party
+    // รวมจำนวนตามพรรค
     const grouped = d3.rollup(votes, v => v.length, v => v.voter_party || "Other");
     const sortedParties = Array.from(grouped.entries()).sort((a, b) => b[1] - a[1]);
-
-    // Top 6 parties + "Other"
     const top = sortedParties.slice(0, 6);
     const rest = sortedParties.slice(6);
     const otherSum = d3.sum(rest, d => d[1]);
@@ -78,38 +93,45 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     const total = d3.sum(top, d => d[1]);
     if (total === 0) return;
 
-    const factor = 1; //แก้
-      const cells = [];
+    // --- สร้าง cells ---
+    const factor = 1;
+    const cells = [];
     top.forEach(([party, count]) => {
-    const cellCount = Math.max(1, Math.round(count / factor));
-     for (let i = 0; i < cellCount; i++) cells.push(party);
+      const cellCount = Math.max(1, Math.round(count / factor));
+      for (let i = 0; i < cellCount; i++) cells.push(party);
     });
- 
-    // Layout params
-    const cols = 20;
+
+    // --- Layout parameters ---
+    const cols = 25;
     const cellSize = 10;
     const gap = 1.5;
     const width = cols * (cellSize + gap);
     const rows = Math.ceil(cells.length / cols);
- 
-    const g = svg.append("g").attr("transform", `translate(10,10)`);
+    const height = rows * (cellSize + gap);
 
+    // ✅ ปรับ viewBox ตามจำนวน cell
+    svg
+      .attr("viewBox", `0 0 ${width + 20} ${height + 20}`)
+      .attr("preserveAspectRatio", "xMidYMid meet");
+
+    const g = svg.append("g").attr("transform", "translate(10,10)");
+
+    // --- วาด cells ---
     if (shape === "square") {
       g.selectAll("rect.cell")
         .data(cells)
         .join("rect")
-        .attr("class", "side-square")
         .attr("x", (_, i) => (i % cols) * (cellSize + gap))
         .attr("y", (_, i) => Math.floor(i / cols) * (cellSize + gap))
         .attr("width", cellSize)
         .attr("height", cellSize)
+        .attr("rx", 1.5)
         .attr("fill", d =>
           selectedParty && d !== selectedParty ? "#dcdcdc" : colorByParty[d] || "#bbb"
         )
         .classed("dim", d => selectedParty && d !== selectedParty)
         .classed("highlight", d => selectedParty && d === selectedParty);
     } else {
-      // Person icons, use <use> with color styling
       const group = g
         .selectAll("g.person")
         .data(cells)
@@ -122,8 +144,6 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
       group
         .append("use")
         .attr("href", "#personIcon")
-        .attr("x", 0)
-        .attr("y", 0)
         .attr("width", cellSize)
         .attr("height", cellSize)
         .style("color", d =>
@@ -133,33 +153,29 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
         .classed("highlight", d => selectedParty && d === selectedParty);
     }
 
-    // Legend
-    const legend = d3
-      .select(containerSelector)
-      .selectAll(".side-legend")
-      .data([1])
-      .join("div")
-      .attr("class", "side-legend text-body") // Added text-body for color switching
+    // --- สร้าง legend ด้านล่าง ---
+    wrapper
+      .append("div")
+      .attr("class", "side-legend text-body")
       .style("margin-top", "8px")
+      .style("max-width", "100%")
+      .style("overflow", "hidden")
       .html(() => {
         return (
-          // Adjusted legend header for dark mode
           `<div class="text-body" style="font-weight:600; margin-bottom:6px;">${lastCategory} — total ${total}</div>` +
           top
             .map(([party, count]) => {
               const color = colorByParty[party] || "#bbb";
               const dimStyle = selectedParty && party !== selectedParty ? "opacity:0.35" : "";
- 
               const percent = (count / totalMPs) * 100;
               const displayCount = `${count} (${percent.toFixed(1)}%)`;
- 
               return `
                 <div style="display:flex; justify-content:space-between; align-items:center; margin:3px 0;">
                   <div style="display:flex; align-items:center; gap:8px;">
                     <span style="width:12px; height:12px; background:${color}; display:inline-block;"></span>
-                    <span class="text-body" style="font-size:15px;">${party}</span>
+                    <span class="text-body" style="font-size:13px;">${party}</span>
                   </div>
-                  <div class="text-body-secondary" style="${dimStyle}; font-size:15px">${displayCount}</div>
+                  <div class="text-body-secondary" style="${dimStyle}; font-size:13px">${displayCount}</div>
                 </div>
               `;
             })
@@ -168,10 +184,10 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
       });
   }
 
-  // Event handlers
+  // --- Event listeners ---
   eventBus.on("waffle:selected", rec => {
     lastRecord = rec;
-    lastCategory = lastCategory || "agree"; // If a new record is selected, default to 'agree' if no category was set
+    lastCategory = lastCategory || "agree";
     render();
   });
 
@@ -185,9 +201,9 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     render();
   });
 
-  // Call render immediately to display the latest record on load
-  if (lastRecord) render(); 
+  // --- Initial render ---
+  if (lastRecord) render();
 
-  // Public API
+  // --- Public API ---
   return { setShape, render };
 }
