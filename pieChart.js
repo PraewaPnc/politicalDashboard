@@ -11,7 +11,7 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
   // Function to get the current container size
   function getContainerSize() {
     const refEl = container.node();
-    const w = refEl?.clientWidth || 320;
+    const w = refEl?.clientWidth || 400;
     const h = refEl?.clientHeight || w; // Default to square
     // Use the smallest dimension for the chart circle to ensure it fits
     const size = Math.min(w, h);
@@ -46,8 +46,15 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
 
   // --- Structure ---
   const chartWrapper = container
-    .append("div")
-    .attr("class", "pie-chart-content-wrapper");
+  .append("div")  
+  .attr("class", "pie-chart-content-wrapper")
+  .style("width", "100%")
+  .style("height", "100%")
+  .style("display", "flex")
+  .style("flex-direction", "column")
+  .style("align-items", "center")
+  .style("justify-content", "center")
+  .style("overflow", "hidden"); 
 
   // 👉 Add title ABOVE the SVG here
   const titleContainer = chartWrapper
@@ -64,11 +71,13 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
 
   // SVG (below title)
   const svg = chartWrapper
-    .append("svg")
-    // REMOVED fixed width/height
-    .attr("viewBox", `0 0 ${W} ${H}`) // Initial viewBox
-    .attr("preserveAspectRatio", "xMidYMid meet")
-    .style("display", "block");
+  .append("svg")
+  .attr("width", "100%")
+  .attr("height", "100%")
+  .attr("viewBox", `0 0 ${W} ${H}`)
+  .attr("preserveAspectRatio", "xMidYMid meet")
+  .style("display", "block");
+
 
   // G element for chart translation
   const g = svg.append("g")
@@ -147,6 +156,7 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
         `)
         .style("display", "block")
         .datum(record);
+
 
     currentData = Object.entries(
       record.categoryPercentages || {
