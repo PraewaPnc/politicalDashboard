@@ -12,7 +12,7 @@ let currentYear = null;
 let currentParty = null;
 let pieChartInstance = null;
 let sideWaffleChartInstance = null;
-let circleAPI = null;
+let circleAPI = null; // <-- เพิ่มบรรทัดนี้ ใช้เก็บอินสแตนซ์ circlePacking
 
 /* ---------------- EventBus ---------------- */
 class EventBus {
@@ -386,7 +386,7 @@ function renderAll() {
   if (!sideWaffleChartInstance)
     sideWaffleChartInstance = createSideWaffleChart("#sideWaffleChart", bus, PARTY_COLORS, latestRecord);
   else {
-    bus.dispatch("waffle:selected", latestRecord);
+    
   }
   const squareActive = document.getElementById("shapeSquare")?.classList.contains("active");
   sideWaffleChartInstance?.setShape?.(squareActive ? "square" : "person");
