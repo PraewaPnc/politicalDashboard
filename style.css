@@ -75,34 +75,46 @@ header .subtitle {
   width: 100%;
 }
 
+/* style.css: Around line 99 */
 .chart {
-  background: rgba(255, 255, 255, 0.2); /* Semi-transparent white background */
+  background: rgba(255, 255, 255, 0.2);
   border: 1px solid rgba(221, 221, 221, 0.5);
-  border-radius: 10px;
-  padding: 10px;
+  border-radius: 5px;
+  /* ADJUSTED: Reduced padding from 10px to 5px vertically to save space */
+  padding: 2px 10px; 
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.04);
   display: block;
-  /* Ensure the chart takes the full width of its Bootstrap column */
   width: 100%; 
   height: auto;
-  /* max-height: 200vh; Limits max height to 60% of viewport height */
-  /* overflow-y: auto; Ensures scrollbar appears if content overflows max-height */
 }
 
-/* Chart-specific sizes */
-/* MODIFIED: Removed fixed 'width: 600px' for full responsiveness */
+/* style.css: Around line 136 (Chart-specific sizes block) */
 #waffleChart,
-#pieChart,
-#sideWaffleWrap,
 #circlePacking {
-  min-height: 350px; /* Reduced min-height slightly for better mobile fit */
+  height: 50vh; /* (Set in previous step) */
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  /* height: 450px; */
+}
+
+#pieChart,
+#sideWaffleWrap {
+  height: 60vh; /* (Set in previous step) */
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 #sideWaffleChart {
-  flex: 1;
+  /* This ensures the inner element takes up all remaining space */
+  flex: 1; 
+  height: 100%;
+}
+
+/* NEW: Added explicit rule for chart-inner */
+.chart-inner {
+  height: 100%; /* Must take 100% of the parent's (40vh) height */
+  width: 100%;
 }
 
 /* Custom rule to ensure all text in the waffle chart adopts the dynamic color */
@@ -184,7 +196,7 @@ select {
 .side-controls {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 .shape-toggle {
@@ -339,7 +351,7 @@ select {
     /* Ensure the container is big enough but centered */
     max-width: 400px;
     /* CHANGE 2: Use auto margins to center the entire container */
-    margin: 12px auto 0 auto;
+    margin: 10px auto 0 auto;
 }
 
 .legend-item {
@@ -383,7 +395,7 @@ select {
 }
 
 #pieChart svg {
-  flex-shrink: 0;
+  flex-shrink: 1;
 }
 
 .pie-heading {
@@ -650,5 +662,32 @@ select {
 
   .site-header .subtitle {
     font-size: 0.9rem;
+  }
+}
+
+.side-waffle-chart-wrapper {
+  transition: all 0.2s ease;
+}
+
+
+.side-waffle-chart-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 0px 40px;
+}
+
+.side-legend > div:first-child {
+  grid-column: 1 / -1; /* หัวข้อให้กินทั้ง 2 คอลัมน์ */
+}
+
+@media (max-width: 480px) {
+  .side-legend {
+    grid-template-columns: 1fr; /* มือถือแสดงคอลัมน์เดียว */
   }
 }
