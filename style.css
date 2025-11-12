@@ -604,6 +604,30 @@ select {
   overflow-y: auto;
 }
 
+/* ----- FORCE POPUP & TOOLTIP TEXT TO BLACK (both modes) ------ */
+/* Popup / modal details (the box that appears when you click a chart) */
+.popup-box,
+.popup-body,
+.popup-header,
+.popup-info-row,
+.popup-info-row .info-value,
+.popup-info-row .info-label,
+.popup-description-text,
+#popupContainer,
+#popupContainer * {
+  color: #000 !important;       /* บังคับข้อความใน popup เป็นดำ */
+}
+
+#tooltip,
+.popup-box {
+  background: #fff !important;
+}
+
+.popup-box svg text,
+.popup-box svg tspan {
+  fill: #000 !important;
+}
+
 
 /* =========================================================
    FOOTER
