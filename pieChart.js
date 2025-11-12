@@ -137,12 +137,16 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
     }
 
     // --- Case 2: Record selected (or latestRecord is now set) ---
-    // titleContainer
-    //   .html(
-    //     `<p class="pie-title-text text-body link-offset-3 link-underline-opacity-0">
-    //     ${record.title}<span class="pie-date-text text-body-secondary"> — ${record.dateStr}</span></p>`
-    //   )
-    //   .datum(record);
+    titleContainer
+        .html(`
+          <p class="pie-heading">สัดส่วนการโหวตรายมติ</p>
+          <p class="pie-title-text">
+            ${record.title}
+            <span class="pie-date-text"> — ${record.dateStr}</span>
+          </p>
+        `)
+        .style("display", "block")
+        .datum(record);
 
     currentData = Object.entries(
       record.categoryPercentages || {
