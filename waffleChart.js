@@ -124,10 +124,12 @@ export function createWaffleChart(containerSelector, records, eventBus) {
       );
 
     g.append("text")
+      .attr("class", "waffle-month text-body")    
       .attr("x", 8)
       .attr("y", y + cellSize - 2)
       .attr("font-size", 15)
       .attr("font-weight", "bold")
+      .attr("fill", "var(--bs-body-color)")      
       .text(month);
 
     const rowGroup = g
@@ -215,10 +217,12 @@ export function createWaffleChart(containerSelector, records, eventBus) {
       .attr("fill", colorRange[i]);
 
     legendGroup.append("text")
+      .attr("class", "legend-label")                 
       .attr("x", x + boxWidth / 2)
       .attr("y", legendHeightBar + 12)
       .attr("text-anchor", "middle")
       .attr("font-size", 11)
+      .attr("fill", "var(--bs-body-color)")          
       .text(thresholdLabels[i]);
   }
 
