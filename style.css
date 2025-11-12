@@ -4,8 +4,8 @@
 body {
   font-family: "Sarabun", "Inter", "Segoe UI", Arial, sans-serif;
   margin: 0;
-  background-image: url('bg2.png');
-  /* background-size: cover; */
+  background-image: url('bg5.png');
+  background-size: cover;
   background-attachment: fixed;
   /* background-color: #fafafa; */
   color: #333;
@@ -725,6 +725,8 @@ select {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 0px 40px;
+  margin-top: 8px;
+  margin-bottom: 4px;
 }
 
 .side-legend > div:first-child {
@@ -736,3 +738,4 @@ select {
     grid-template-columns: 1fr; /* มือถือแสดงคอลัมน์เดียว */
   }
 }
+
