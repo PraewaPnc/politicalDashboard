@@ -107,11 +107,11 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
   const mainTitleEl = titleDiv.append("div")
     .text("สถานะการลงมติ")
     .style("text-align","left")
-    .style("font","600 20px/1.4 sans-serif");
+    .style("font","600 20px/1.4 Sarabun");
 
   const selectedTitleEl = titleDiv.append("div")
     .text("")
-    .style("font","500 15px/1.3 sans-serif")
+    .style("font","500 15px/1.3 Sarabun")
     .style("opacity","0.85")
     .style("cursor","pointer")
     .attr("class","cp-selected-title");
@@ -210,14 +210,14 @@ if (legendMode === "minimal") {
   legendSvg2.append("text")
     .attr("x", small.cx).attr("y", 25)
     .attr("text-anchor", "middle")
-    .style("font", "500 12px sans-serif")
+    .style("font", "500 12px Sarabun")
     .style("fill", "currentColor")
     .text("สูสี");
 
   legendSvg2.append("text")
     .attr("x", large.cx).attr("y", 25)
     .attr("text-anchor", "middle")
-    .style("font", "500 12px sans-serif")
+    .style("font", "500 12px Sarabun")
     .style("fill", "currentColor")
     .text("ชนะขาด");
 }
@@ -368,7 +368,7 @@ if (legendMode === "minimal") {
       .data(resultNodes, d => d.data.key ?? d.data.name)
       .join("text")
       .attr("text-anchor","middle")
-      .style("font","14px sans-serif")
+      .style("font","14px Sarabun")
       .style("font-weight","700")
       .style("fill","#333")
       .text(d => displayResultName(d.data.key ?? d.data.name));
@@ -378,7 +378,7 @@ if (legendMode === "minimal") {
       .data(yearNodes, d => d.data.name)
       .join("text")
       .attr("text-anchor","middle")
-      .style("font","12px sans-serif")
+      .style("font","12px Sarabun")
       .style("font-weight","600")
       .style("fill","#222")
       .style("display","inline")
