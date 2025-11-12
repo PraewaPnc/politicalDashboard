@@ -2,10 +2,10 @@
    GLOBAL BASE STYLES & TYPOGRAPHY
 ========================================================= */
 body {
-  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  font-family: "Noto Sans Thai", "Inter", "Segoe UI", Arial, sans-serif;
   margin: 0;
   background-image: url('bg2.png');
-  background-size: auto;
+  /* background-size: cover; */
   background-attachment: fixed;
   /* background-color: #fafafa; */
   color: #333;
@@ -29,21 +29,24 @@ h2 {
 header {
   text-align: center;
   padding: 5rem 0;
-  background: linear-gradient(90deg, #ef7723, #242e85);
+  background: linear-gradient(90deg, #1d3f72 0%, #324d97 50%, #523a88 100%);
   color: white;
   height: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
- 
+
 header h1 {
   margin: 0;
   font-size: 2rem;
   font-weight: bold;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
 }
- 
+
 header .subtitle {
   font-size: 1.15rem;
   opacity: 0.9;
   margin-top: 20px;
+  color: rgba(255, 255, 255, 0.92);
 }
 
 /* =========================================================
@@ -264,6 +267,24 @@ select {
   color: #555;
   margin-bottom: 6px;
 }
+
+/* --- FORCE TOOLTIP TEXT TO BLACK (work for both Light & Dark modes) --- */
+#tooltip,
+#tooltip * {
+  color: #555 !important;        
+}
+
+#tooltip svg text,
+#tooltip svg tspan {
+  fill: #fff !important;         
+}
+
+#tooltip .tooltip-date,
+#tooltip .tooltip-present,
+#tooltip #tooltip-sub {
+  color: #555 !important;
+}
+
 
 /* =========================================================
    TREEMAP & SIDE WAFFLE STYLES
@@ -592,10 +613,10 @@ select {
   text-align: center;
   padding: 1rem;
   font-size: 0.8rem;
-  color: #faf8f8;
-  background: linear-gradient(90deg, #ef7723, #242e85);
+  color: #f0f2ff;
+  background: linear-gradient(90deg, #1b305c 0%, #362c6e 100%);
   margin-top: 2rem;
-  /* border-top: 1px solid #ddd; */
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 
@@ -678,7 +699,7 @@ select {
 
 .side-legend {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 0px 40px;
 }
 
