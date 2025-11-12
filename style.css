@@ -386,29 +386,33 @@ select {
   flex-shrink: 0;
 }
 
+.pie-heading {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--bs-body-color);
+  text-align: center;
+  margin-bottom: 4px;
+}
+
 .pie-title {
-  font-size: 16px;
-  color: #333;
-  margin-bottom: 8px;
-  transition: color 0.2s ease-in-out;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--bs-body-color);
+  text-align: center;
+  margin: 6px 0 8px;
 }
 
-/* .pie-title:hover {
-  color: #668eb8;
-  font-weight: 800;
-} */
-
-.pie-title:hover .pie-title-text {
-    /* Add highlight effect */
-    text-decoration: underline;
-    /* You can also make it slightly brighter on hover, 
-       using a Bootstrap emphasis color variable which switches modes */
-    color: var(--bs-emphasis-color); 
+.pie-title-text {
+  text-align: center;
+  font-weight: 600;
+  color: var(--bs-body-color);
+  margin: 0;
 }
 
-/* Ensure the date text is not underlined on hover */
-.pie-title:hover .pie-date-text {
-    text-decoration: none;
+.pie-date-text {
+  color: var(--bs-secondary-color);
+  font-weight: 400;
+  font-size: 0.9em;
 }
 
 
