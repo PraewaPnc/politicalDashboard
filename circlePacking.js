@@ -2,18 +2,16 @@
 // Zoomable circle packing + interaction กับ Waffle/Pie ผ่าน event bus
 // - กลุ่มผลโหวต 3 วง: "ผ่าน" / "ไม่ผ่าน" / "N/A(รอรวบรวมผล)"
 // - ชั้นถัดไปแยก "ปี"
-// - วงในสุด (leaf = 1 พ.ร.บ./เรื่อง) มีขนาดตาม |agree_count - disagree_count| (Quantile buckets)
-// - คลิกใบ (leaf): ไม่ซูม แต่ไฮไลต์ + ส่งสัญญาณให้ Waffle (waffle:select)
+// - วงในสุด (leaf = 1 พ.ร.บ./เรื่อง) ขนาด = |agree - disagree| / present   // ✅ สูตรข้อ 4
+// - คลิกใบ (leaf): ไม่ซูม แต่ไฮไลต์ + สัญญาณให้ Waffle (waffle:select)
 // - YEAR FILTER: ปีที่เลือกเป็นสีปกติ ปีอื่นเป็นเทา
-// - TITLE BAR: หัวข้อ "สถานะการลงมติ" + แสดงชื่อเรื่องที่เลือก (คลิกเพื่อ popup: details:show)
-// - LEGEND (MINIMAL): วางด้านล่างกราฟ วงเล็ก → ลูกศร → วงใหญ่ (ผลต่าง น้อย → มาก)
+// - TITLE BAR: "สถานะการลงมติ" + ชื่อเรื่องที่เลือก (คลิกเพื่อ popup: details:show)
+// - LEGEND (MINIMAL): ข้อความภาษาคนทั่วไปตามที่ผู้ใช้เลือก
 
 import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
 
 export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS, bus, options = {}) {
   const keepSquare = options.keepSquare ?? true;
-
-  // [LEGEND] โหมดแสดงผล (ค่าเริ่มต้น = minimal)
   const legendMode = options.legendMode ?? "minimal";
 
   /* ---------------- Getters (รองรับหลาย schema) ---------------- */
@@ -30,8 +28,9 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
       const dt = new Date(s);
       return !isNaN(dt) ? String(dt.getFullYear()) : "ไม่ทราบปี";
     },
-    agree:    (d) => d?.VoteEvent?.agree_count    ?? d?.agree_count    ?? 0,
-    disagree: (d) => d?.VoteEvent?.disagree_count ?? d?.disagree_count ?? 0,
+    agree:    (d) => d?.VoteEvent?.agree_count    ?? d?.agree_count    ?? d?.yea ?? d?.approve ?? d?.for ?? d?.voteAgree ?? 0,
+    disagree: (d) => d?.VoteEvent?.disagree_count ?? d?.disagree_count ?? d?.nay ?? d?.reject  ?? d?.against ?? d?.voteDisagree ?? 0,
+    present:  (d) => d?.presentCount ?? d?.present ?? d?.attend_count ?? d?.present_total ?? d?.VoteEvent?.present_count ?? 0,
   };
 
   /* ---------------- Normalize result → PASS / FAIL / N/A ---------------- */
@@ -51,18 +50,17 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
   }
 
   /* ---------------- Build hierarchy: root → result → year → leaf ---------------- */
-  function buildHierarchy(records, valueMapper) {
+  function buildHierarchy(records, leafValueFn) {
     const byResult = new Map([[PASS, new Map()], [FAIL, new Map()], [NA, new Map()]]);
     for (const r of records) {
       const res   = normalizeResult(getters.result(r));
       const yr    = getters.year(r);
       const title = getters.title(r);
       const id    = getters.id(r);
-      const diff  = Math.abs((+getters.agree(r) || 0) - (+getters.disagree(r) || 0));
-      const weight = valueMapper ? valueMapper(diff) : 1;
 
+      const value = Math.max(0, Number(leafValueFn?.(r, res) ?? 0)); // กัน NaN/ติดลบ
       if (!byResult.get(res).has(yr)) byResult.get(res).set(yr, []);
-      byResult.get(res).get(yr).push({ name: title, id, value: weight, raw: r, diff });
+      byResult.get(res).get(yr).push({ name: title, id, value, raw: r });
     }
 
     const resultChildren = [];
@@ -82,16 +80,12 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
   }
 
   /* ---------------- Colors ---------------- */
-  // (คงค่าสีตามไฟล์ปัจจุบันของคุณ)
   const COLOR_RESULT = { [PASS]: "#cfdd9d", [FAIL]: "#f8cae4", [NA]: "#b8dcee" };
   const COLOR_YEAR   = { [PASS]: "#a5c4a8", [FAIL]: "#ea6993", [NA]: "#7ea3b8" };
   const COLOR_LEAF   = { [PASS]: "#447a5f", [FAIL]: "#832d51", [NA]: "#234458" };
   const GREY_LIGHT   = "#e6e6e6";
   const GREY_LEAF    = "#c9c9c9";
   const GREY_YEAR    = "#d8d8d8";
-
-  /* ---------------- BUCKETS helper: radius -> value (พื้นที่) ---------------- */
-  const r2v = r => r * r;
 
   /* ---------------- Container & Title ---------------- */
   const container = d3.select(containerSelector);
@@ -140,86 +134,78 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
   const gResultLbls = svg.append("g").attr("pointer-events","none");
   const gYearLbls   = svg.append("g").attr("pointer-events","none");
 
-  /* ---------------- Legend (Minimal) — Small centered version ---------------- */
+  /* ---------------- Legend (Minimal) — Plain-language version ---------------- */
 if (legendMode === "minimal") {
   const bottomLegend = container.append("div")
     .attr("class", "cp-size-legend-bottom")
-    .style("display", "flex")
-    .style("flex-direction", "column")
-    .style("gap", "3px")
-    .style("align-items", "center")  // อยู่ตรงกลาง
-    .style("margin-top", "1px")
-    .style("color", "currentColor")
-    .style("font-size", "12px");     // ปรับเล็กให้ match ขนาดวงกลม
+    .style("display","grid")
+    .style("grid-template-rows","auto auto auto")
+    .style("justify-items","center")
+    .style("row-gap","4px")
+    .style("margin-top","6px")
+    .style("color","currentColor")
+    .style("font-size","12px");
 
+  // ✅ ข้อความภาษาคนทั่วไป
   bottomLegend.append("div")
-    .style("opacity", 0.9)
-    .text("ขนาดวงกลม = ระดับความทิ้งห่างของผลโหวต (น้อย → มาก)");
+    .style("opacity", 0.95)
+    .style("text-align", "center")
+    .html(`
+      <b>ขนาดวงกลม = ความสูสีของผลโหวต</b><br>
+      
+    `);
 
+  // ✅ แถว visual (วงเล็ก → ลูกศร → วงใหญ่)
   const row = bottomLegend.append("div")
-    .style("display", "flex")
-    .style("align-items", "center")
-    .style("gap", "4px");
+    .style("display","grid")
+    .style("grid-template-columns","min-content 1fr min-content")
+    .style("align-items","center")
+    .style("column-gap","6px")
+    .style("width","100%")
+    .style("max-width","260px");
 
-  const legendSvg2 = row.append("svg")
-    .attr("viewBox", "0 0 100 28")
-    .attr("preserveAspectRatio", "xMidYMid meet")
-    .style("width", "150px")
-    .style("height", "28px");
+  const svgLegend = row.append("svg")
+    .attr("viewBox","0 0 120 40")
+    .attr("preserveAspectRatio","xMidYMid meet")
+    .style("width","100%")
+    .style("height","40px")
+    .style("grid-column","1 / 4")
+    .style("overflow","visible");
 
-  // สร้าง marker ลูกศรขนาดเล็ก
   const arrowId = `cp-arrow-${Math.random().toString(36).slice(2,8)}`;
-  const defs = legendSvg2.append("defs");
-  defs.append("marker")
-    .attr("id", arrowId)
-    .attr("viewBox", "0 0 8 8")
-    .attr("refX", "7")
-    .attr("refY", "4")
-    .attr("markerWidth", "4")   // เล็กลงจาก 6 → 4
-    .attr("markerHeight", "4")
-    .attr("orient", "auto-start-reverse")
-    .append("path")
-    .attr("d", "M 0 0 L 8 4 L 0 8 z")
-    .attr("fill", "currentColor");
+  svgLegend.append("defs").append("marker")
+    .attr("id", arrowId).attr("viewBox","0 0 8 8")
+    .attr("refX","7").attr("refY","4")
+    .attr("markerWidth","4").attr("markerHeight","4")
+    .attr("orient","auto-start-reverse")
+    .append("path").attr("d","M 0 0 L 8 4 L 0 8 z").attr("fill","currentColor");
 
-  // 🔹 ขนาดใหม่ตามที่ผู้ใช้กำหนด
-  const small = { cx: 18, cy: 8, r: 3 };
-  const large = { cx: 82, cy: 8, r: 7 };
+  // 🔘 ขยับวงกลมขึ้นนิดนึงให้บาลานซ์
+  const small = { cx: 15,  cy: 13, r: 3 };
+  const large = { cx: 105, cy: 13, r: 8 };
 
-  // วงเล็ก
-  legendSvg2.append("circle")
+  svgLegend.append("circle")
     .attr("cx", small.cx).attr("cy", small.cy).attr("r", small.r)
-    .attr("fill", "#bdbdbd").attr("stroke", "#9e9e9e").attr("opacity", 0.95);
+    .attr("fill","#bdbdbd").attr("stroke","#9e9e9e");
 
-  // เส้นลูกศร (สั้นลง และตรงกลางพอดี)
-  legendSvg2.append("line")
-    .attr("x1", small.cx + small.r + 3)
-    .attr("y1", small.cy)
-    .attr("x2", large.cx - large.r - 3)
-    .attr("y2", large.cy)
-    .attr("stroke", "currentColor")
-    .attr("stroke-width", 1.4)         // เส้นบางลง
+  svgLegend.append("line")
+    .attr("x1", small.cx + small.r + 4).attr("y1", small.cy)
+    .attr("x2", large.cx - large.r - 4).attr("y2", large.cy)
+    .attr("stroke","currentColor").attr("stroke-width",1.4)
     .attr("marker-end", `url(#${arrowId})`);
 
-  // วงใหญ่
-  legendSvg2.append("circle")
+  svgLegend.append("circle")
     .attr("cx", large.cx).attr("cy", large.cy).attr("r", large.r)
-    .attr("fill", "#bdbdbd").attr("stroke", "#9e9e9e").attr("opacity", 0.95);
+    .attr("fill","#bdbdbd").attr("stroke","#9e9e9e");
 
-  // ป้ายใต้แต่ละวง
-  legendSvg2.append("text")
-    .attr("x", small.cx).attr("y", 25)
-    .attr("text-anchor", "middle")
-    .style("font", "500 12px Sarabun")
-    .style("fill", "currentColor")
-    .text("สูสี");
+  // ✅ ป้ายใต้แต่ละวงให้ไม่ตัดขอบ (y = 34)
+  svgLegend.append("text")
+    .attr("x", small.cx).attr("y", 34).attr("text-anchor","middle")
+    .style("font","500 12px Sarabun").text("สูสี ≈ 0–10%");
 
-  legendSvg2.append("text")
-    .attr("x", large.cx).attr("y", 25)
-    .attr("text-anchor", "middle")
-    .style("font", "500 12px Sarabun")
-    .style("fill", "currentColor")
-    .text("ชนะขาด");
+  svgLegend.append("text")
+    .attr("x", large.cx).attr("y", 34).attr("text-anchor","middle")
+    .style("font","500 12px Sarabun").text("ชนะขาด ≥ 40%");
 }
 
   /* ---------------- State ---------------- */
@@ -230,26 +216,20 @@ if (legendMode === "minimal") {
   let currentYearFilter = null;
   let lastSelectedRecord = null;
 
-  /* ---------------- Compute (Quantile Buckets) ---------------- */
+  /* ---------------- Compute (สูตรข้อ 4: margin) ---------------- */
   function compute(records) {
-    const diffs = (records ?? []).map(r =>
-      Math.abs((+getters.agree(r) || 0) - (+getters.disagree(r) || 0))
-    );
+    const leafValueFn = (rec /*, resKey */) => {
+      const a = +getters.agree(rec)    || 0;
+      const b = +getters.disagree(rec) || 0;
+      const p = +getters.present(rec)  || 0;
+      if (!p) return 0;
+      return Math.abs(a - b) / p; // 0..1 → ใช้เป็น "พื้นที่" ของใบไม้
+    };
 
-    let valueFromDiff;
-    if (!diffs.length) {
-      valueFromDiff = () => 1;
-    } else {
-      const rScale = d3.scaleQuantile()
-        .domain(diffs)
-        .range([10, 14, 18, 22, 26, 32]);
-      valueFromDiff = d => r2v(rScale(d));
-    }
-
-    const data = buildHierarchy(records ?? [], valueFromDiff);
+    const data = buildHierarchy(records ?? [], leafValueFn);
 
     root = d3.pack().size([W, H]).padding(5)(
-      d3.hierarchy(data).sum(d => d.value || 0).sort((a,b)=> b.value - a.value)
+      d3.hierarchy(data).sum(d => (typeof d.value === "number" ? d.value : 0)).sort((a,b)=> b.value - a.value)
     );
     focus = root;
     view  = [root.x, root.y, root.r * 2];
@@ -298,7 +278,7 @@ if (legendMode === "minimal") {
       const y = nodeYearName(d);
       if (String(y) !== String(currentYearFilter)) {
         return d.depth === 2 ? GREY_YEAR : GREY_LEAF;
-        }
+      }
     }
 
     if (!selectedNode) {
@@ -353,7 +333,9 @@ if (legendMode === "minimal") {
         const raw = d.data?.raw;
         const a = getters.agree(raw) || 0;
         const b = getters.disagree(raw) || 0;
-        return `${d.data.name}\nagree: ${a}\ndisagree: ${b}\ndiff: ${Math.abs(a-b)}`;
+        const p = getters.present(raw) || 0;
+        const margin = p ? Math.abs(a-b)/p : 0;
+        return `${d.data.name}\npresent: ${p}\nagree: ${a}\ndisagree: ${b}\nmargin: ${(margin*100).toFixed(1)}%`;
       }
       if (d.depth === 1) return displayResultName(d.data?.key ?? d.data?.name) || "";
       return d.data?.name || "";
@@ -363,7 +345,6 @@ if (legendMode === "minimal") {
     const resultNodes = nodes.filter(d => d.depth === 1);
     const yearNodes   = nodes.filter(d => d.depth === 2);
 
-    // ป้ายผลโหวต (ใช้ display name)
     gResultLbls.selectAll("text")
       .data(resultNodes, d => d.data.key ?? d.data.name)
       .join("text")
@@ -373,7 +354,6 @@ if (legendMode === "minimal") {
       .style("fill","#333")
       .text(d => displayResultName(d.data.key ?? d.data.name));
 
-    // ป้ายปี: แสดงตลอด
     const yearText = gYearLbls.selectAll("text")
       .data(yearNodes, d => d.data.name)
       .join("text")
@@ -514,10 +494,7 @@ if (legendMode === "minimal") {
   function applyResize(forceRender = false) {
     const size = getContainerSize();
     if (!forceRender && size.W === W && size.H === H) return;
-
-    W = size.W;
-    H = size.H;
-
+    W = size.W; H = size.H;
     svg.attr("viewBox", `${-W/2} ${-H/2} ${W} ${H}`);
     render();
   }
