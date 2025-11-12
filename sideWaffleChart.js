@@ -1,5 +1,4 @@
 // sideWaffleChart.js
-// ใช้ <symbol id="personIcon"> และ <use> โดยใช้ CSS 'color' เป็นสีของพรรคการเมือง
 
 export function createSideWaffleChart(containerSelector, eventBus, colorByParty, latestRecord, totalMPs = 700) {
   const container = d3.select(containerSelector);
@@ -46,23 +45,12 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     .style("overflow", "hidden")
     .style("display", "block");
 
-  // --- Icon Definitions ---
-  const defs = svg.append("defs");
-  defs
-    .append("symbol")
-    .attr("id", "personIcon")
-    .attr("viewBox", "0 0 64 64")
-    .append("g")
-    .html(`
-      <circle cx="32" cy="16" r="12" fill="currentColor"></circle>
-      <path d="M8 56c0-13 11-24 24-24s24 11 24 24" fill="currentColor"></path>
-    `);
 
   // --- Internal state ---
   let lastRecord = latestRecord || null;
   let lastCategory = lastRecord ? "agree" : null;
   let selectedParty = null;
-  let shape = "square"; // หรือ "person"
+  let shape = "square"; //
 
   // --- Setter for shape ---
   function setShape(newShape) {
@@ -140,28 +128,115 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
         )
         .classed("dim", d => selectedParty && d !== selectedParty)
         .classed("highlight", d => selectedParty && d === selectedParty);
-    } else {
-      const group = g
-        .selectAll("g.person")
-        .data(cells)
-        .join("g")
-        .attr(
-          "transform",
-          (_, i) => `translate(${(i % cols) * (cellSize + gap)},${Math.floor(i / cols) * (cellSize + gap)})`
-        );
+} else {
+  // ✅ ใช้ factor ที่คำนวณไว้แล้ว (ไม่สร้าง legend ใหม่)
+  const svgSize = 240;
+  const chartHeight = 200;
 
-      group
-        .append("use")
-        .attr("href", "#personIcon")
-        .attr("width", cellSize)
-        .attr("height", cellSize)
-        .style("color", d =>
-          selectedParty && d !== selectedParty ? "#dcdcdc" : colorByParty[d] || "#bbb"
-        )
-        .classed("dim", d => selectedParty && d !== selectedParty)
-        .classed("highlight", d => selectedParty && d === selectedParty);
+  svg
+    .attr("height", chartHeight + 40)
+    .attr("viewBox", `0 0 ${svgSize} ${chartHeight + 40}`)
+    .attr("preserveAspectRatio", "xMidYMid meet");
+
+  const g = svg.append("g").attr("transform", `translate(${svgSize / 2}, ${chartHeight * 0.9})`);
+
+
+  // ✅ เรียง top พรรคจากมากไปน้อย
+  const sortedTop = [...top].sort((a, b) => b[1] - a[1]);
+
+  // ✅ ใช้ factor ที่มีอยู่แล้ว -> 1 จุดแทนกี่โหวต
+  const circlesData = [];
+  sortedTop.forEach(([party, count]) => {
+    const reducedCount = Math.max(1, Math.round(count / factor));
+    for (let i = 0; i < reducedCount; i++) {
+      circlesData.push({ voter_party: party });
     }
+  });
 
+  // ✅ ควบคุมจำนวน layer & สัดส่วนให้คงรูปสวย
+  const totalSeats = circlesData.length;
+  const maxSeats = 200;
+  const scaleFactor = Math.sqrt(totalSeats / maxSeats);
+
+  const layers = Math.max(5, Math.round(5 * scaleFactor));
+  const basePoints = Math.round(24 * scaleFactor);
+  const radiusStart = 55;
+  const radiusStep = 16;
+  const angleStart = Math.PI;
+  const angleEnd = 0;
+
+  let index = 0;
+  const positions = [];
+
+  for (let r = 0; r < layers; r++) {
+    const radius = radiusStart + r * radiusStep;
+    const n = Math.round(basePoints * (radius / radiusStart) * 0.8);
+    const angleStep = (angleEnd - angleStart) / (n - 1);
+
+    for (let i = 0; i < n; i++) {
+      if (index >= circlesData.length) break;
+      const angle = angleStart + i * angleStep;
+      positions.push({
+        ...circlesData[index],
+        x: Math.cos(angle) * radius,
+        y: -Math.sin(angle) * radius,
+      });
+      index++;
+    }
+  }
+
+  // ✅ วาดวงกลม
+  const circles = g
+    .selectAll("circle.cell")
+    .data(positions)
+    .join("circle")
+    .attr("cx", d => d.x)
+    .attr("cy", d => d.y)
+    .attr("r", 4.5)
+    .attr("fill", d =>
+      selectedParty && d.voter_party !== selectedParty
+        ? "#dcdcdc"
+        : colorByParty[d.voter_party] || "#bbb"
+    )
+    .style("transition", "fill 0.15s ease-out");
+
+  // ✅ Tooltip
+  circles
+    .on("mouseover", function (event, d) {
+      d3.select(this).attr("stroke", "#000").attr("stroke-width", 1.3);
+      const tooltip = d3.select("body")
+        .append("div")
+        .attr("class", "tooltip")
+        .style("position", "absolute")
+        .style("padding", "4px 8px")
+        .style("background", "#333")
+        .style("color", "#fff")
+        .style("border-radius", "4px")
+        .style("font-size", "12px")
+        .style("pointer-events", "none")
+        .style("opacity", 0)
+        .style("z-index", 1000)
+        .text(d.voter_party || "Unknown");
+
+      tooltip.transition().duration(60).style("opacity", 0.95);
+      tooltip
+        .style("left", `${event.pageX + 5}px`)
+        .style("top", `${event.pageY - 10}px`);
+    })
+    .on("mousemove", function (event) {
+      d3.select("body").select(".tooltip")
+        .style("left", `${event.pageX + 5}px`)
+        .style("top", `${event.pageY - 10}px`);
+    })
+    .on("mouseout", function () {
+      d3.select(this).attr("stroke", "none");
+      d3.select("body").selectAll(".tooltip")
+        .transition().duration(50).style("opacity", 0).remove();
+    });
+}
+
+
+ 
     // --- สร้าง legend ด้านล่าง ---
     wrapper
       .append("div")
