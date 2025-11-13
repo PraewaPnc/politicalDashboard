@@ -23,7 +23,7 @@ export function createWaffleChart(containerSelector, records, eventBus) {
   head.append("div")
     .attr("class", "waffle-chart-subtitle text-body")
     .style("text-align", "left")
-    .style("font-size", "1rem")
+    .style("font-size", "0.9rem")
     .style("font-weight", "600")
     .style("opacity", "0.9")
     .style("margin-bottom", "10px")
