@@ -1,4 +1,5 @@
 // app.js
+
 import { fetchVoteData, forceRefreshVoteData, getPartyColors } from "./data.js";
 import { createWaffleChart } from "./waffleChart.js";
 import { createPieChart } from "./pieChart.js";
@@ -229,32 +230,32 @@ function setupTooltipAndTreemap() {
     tooltip.select("#tooltip-header").text(new Date(record.dateStr).toLocaleDateString());
     tooltip.select("#tooltip-sub").text(record.title);
     // ✅ NEW: แสดง % แบบแยกพรรคเมื่อเลือก filter
-const partyKey = currentParty?.trim().toLowerCase() || "all";
-let presentInfo = "";
+    const partyKey = currentParty?.trim().toLowerCase() || "all";
+    let presentInfo = "";
 
-if (!currentParty || currentParty === "all") {
-  // แสดงรวม
-  presentInfo = `Present: ${record.presentCount}/${record.totalVoters} (${record.presentPercent}%)`;
-} else {
-  const partyBreakdown = record.partyBreakdown || {};
-  const totalByParty = record.totalByParty || {};
+    if (!currentParty || currentParty === "all") {
+      // แสดงรวม
+      presentInfo = `Present: ${record.presentCount}/${record.totalVoters} (${record.presentPercent}%)`;
+    } else {
+      const partyBreakdown = record.partyBreakdown || {};
+      const totalByParty = record.totalByParty || {};
 
-  const matchedParty = Object.keys(totalByParty).find(
-    p => p.trim().toLowerCase() === partyKey
-  );
+      const matchedParty = Object.keys(totalByParty).find(
+        p => p.trim().toLowerCase() === partyKey
+      );
 
-  const partyPresent = matchedParty ? (partyBreakdown[matchedParty] || 0) : 0;
-  const partyTotal = matchedParty ? (totalByParty[matchedParty] || 0) : 0;
+      const partyPresent = matchedParty ? (partyBreakdown[matchedParty] || 0) : 0;
+      const partyTotal = matchedParty ? (totalByParty[matchedParty] || 0) : 0;
 
-  if (partyTotal > 0) {
-    const percent = ((partyPresent / partyTotal) * 100).toFixed(1);
-    presentInfo = `Present: ${partyPresent}/${partyTotal} (${percent}%)`;
-  } else {
-    presentInfo = `No data for "${currentParty}"`;
-  }
-}
+      if (partyTotal > 0) {
+        const percent = ((partyPresent / partyTotal) * 100).toFixed(1);
+        presentInfo = `Present: ${partyPresent}/${partyTotal} (${percent}%)`;
+      } else {
+        presentInfo = `No data for "${currentParty}"`;
+      }
+    }
 
-tooltip.select("#tooltip-percent").text(presentInfo);
+    tooltip.select("#tooltip-percent").text(presentInfo);
 
     bus.dispatch("show:treemap", record);
     moveTooltip(event);
@@ -266,8 +267,9 @@ tooltip.select("#tooltip-percent").text(presentInfo);
   function moveTooltip(event) {
     if (!event) return;
     const offset = 12;
-    tooltip.style("left", `${Math.min(window.innerWidth - 10, event.clientX + offset)}px`)
-      .style("top", `${Math.min(window.innerHeight - 10, event.clientY + offset)}px`);
+    // ปรับตำแหน่งให้เหมาะสม ไม่ให้ล้นขอบจอ
+    tooltip.style("left", `${Math.min(window.innerWidth - tooltip.node().offsetWidth - 5, event.clientX + offset)}px`)
+      .style("top", `${Math.min(window.innerHeight - tooltip.node().offsetHeight - 5, event.clientY + offset)}px`);
   }
 
   bus.on("show:treemap", (record) => renderTreemap(record, tooltip));
@@ -290,15 +292,32 @@ function renderTreemap(record, tooltip) {
     return;
   }
 
-  const w = +svg.attr("width"), h = +svg.attr("height");
+  // ✅ [แก้ไข] อ่านขนาดจริงของ tooltip และกำหนดความสูง
+  const tooltipNode = tooltip.node();
+  // clientWidth คือความกว้างภายใน (ไม่รวม border, margin, scrollbar)
+  // -20 สำหรับ padding ซ้าย-ขวา 10px (รวมเป็น 20px)
+  const availableWidth = tooltipNode.clientWidth - 20; 
+  
+  // กำหนดความสูงคงที่สำหรับ Treemap (ต้องสัมพันธ์กับ .treemap-container ใน CSS)
+  const TREEMAP_HEIGHT = 150; 
+  
+  // ตั้งค่า SVG ให้ขนาดตามที่คำนวณ
+  svg.attr("width", availableWidth).attr("height", TREEMAP_HEIGHT);
+
+  const w = availableWidth;
+  const h = TREEMAP_HEIGHT;
+
   const root = d3.hierarchy({ children: nodes }).sum(d => d.value);
-  d3.treemap().size([w, h]).paddingInner(4)(root);
+  // ใช้ paddingInner และ paddingOuter เพื่อให้ Treemap สวยงาม
+  d3.treemap().size([w, h]).paddingInner(1).paddingOuter(2)(root); 
 
   const color = d3.scaleOrdinal()
     .domain(nodes.map(n => n.party))
     .range(nodes.map(n => PARTY_COLORS[n.party] || PARTY_COLORS["Other"]));
 
-  const g = svg.selectAll("g.node")
+  // ✅ [แก้ไข] ลบ gContainer และการปรับ scale ออก
+  const g = svg.append("g").attr("class", "treemap-group")
+    .selectAll("g.node")
     .data(root.leaves())
     .join("g")
     .attr("transform", d => `translate(${d.x0},${d.y0})`);
@@ -308,24 +327,35 @@ function renderTreemap(record, tooltip) {
     .attr("height", d => d.y1 - d.y0)
     .attr("fill", d => color(d.data.party))
     .attr("stroke", d => currentParty === d.data.party ? "#000" : "none")
-    .attr("stroke-width", d => currentParty === d.data.party ? 3 : 1)
+    .attr("stroke-width", d => currentParty === d.data.party ? 2 : 1)
     .attr("opacity", d => (!currentParty || d.data.party === currentParty) ? 1 : 0.4);
 
   g.append("text")
-    .attr("x", 6).attr("y", 14).attr("font-size", 12).attr("fill", d => {
+    .attr("x", 6).attr("y", 14).attr("font-size", 11)
+    .attr("fill", d => {
       const c = d3.color(color(d.data.party));
-      // fallback when d.data.party is Other (color might be set to gray)
       const hex = c ? c.formatHex() : "#999";
       const cc = d3.color(hex);
-      const lum = 0.2126*cc.r + 0.7152*cc.g + 0.0722*cc.b;
-      return lum < 140 ? "#fff" : "#111"; // use white text on dark bg
+      const lum = 0.2126 * cc.r + 0.7152 * cc.g + 0.0722 * cc.b;
+      return lum < 140 ? "#fff" : "#111";
     })
     .text(d => `${d.data.party}: ${d.data.value}`)
     .each(function (d) {
       const w = d.x1 - d.x0, h = d.y1 - d.y0;
-      if (w < 80 || h < 18) d3.select(this).style("display", "none");
+      // ปรับเงื่อนไขการแสดงผลเพื่อให้ข้อความไม่เกินขอบ
+      if (w < 40 || h < 18 || d3.select(this).node().getComputedTextLength() > w - 10) 
+        d3.select(this).style("display", "none");
     });
 
+  // ✅ [แก้ไข] ลบการปรับ scale อัตโนมัติ:
+  // const bbox = gContainer.node().getBBox();
+  // const scale = Math.min(w / bbox.width, h / bbox.height, 1);
+  // const xOffset = (w - bbox.width * scale) / 2 - bbox.x * scale;
+  // const yOffset = (h - bbox.height * scale) / 2 - bbox.y * scale;
+  // gContainer.attr("transform", `translate(${xOffset},${yOffset}) scale(${scale})`);
+
+
+  // ✅ legend ด้านล่าง
   const legend = d3.select("#tooltip-legend").html("");
   nodes.forEach(n => {
     legend.append("div").attr("class", "legend-row")
@@ -336,10 +366,10 @@ function renderTreemap(record, tooltip) {
           ${n.party}
           <span style="margin-left:auto">${n.value}</span>
         </div>
-        
       `);
   });
 }
+
 
 /* ---------------- SHAPE TOGGLE ---------------- */
 function setupShapeToggle() {
@@ -389,7 +419,7 @@ function renderAll() {
     
   }
   const squareActive = document.getElementById("shapeSquare")?.classList.contains("active");
-  sideWaffleChartInstance?.setShape?.(squareActive ? "square" : "cicle");
+  sideWaffleChartInstance?.setShape?.(squareActive ? "square" : "circle");
 
   // 4) ZOOMABLE CIRCLE PACKING  ✅ (แก้บล็อกนี้)
   console.log("CirclePacking records:", allRecords);
