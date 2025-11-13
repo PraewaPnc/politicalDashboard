@@ -24,16 +24,30 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     .style("flex", "1 1 auto")
     .style("overflow", "hidden");
 
-  // --- Chart Title ---
-  chartBody
-    .append("div")
-    .attr("class", "side-waffle-chart-title text-body")
+ // --- Chart Title ---
+    const head = chartBody.append("div")
+    .attr("class", "side-waffle-chart-head");
+ 
+    // Header
+    head.append("div")
+    .attr("class", "side-waffle-chart-title")
     .style("text-align", "left")
     .style("width", "100%")
-    .style("font-size", "1.2rem")
-    .style("font-weight", "bold")
+    .style("font-size", "1.4rem")
+    .style("font-weight", "800")
     .style("margin-bottom", "4px")
-    .text("การโหวตแบ่งตามพรรคการเมือง");
+    .text("พรรคที่คุณเชียร์ โหวตตามสัญญารึเปล่า");
+ 
+    // Sub-header (ของเดิม)
+    head.append("div")
+      .attr("class", "side-waffle-chart-subtitle text-body")
+      .style("text-align", "left")
+      .style("width", "100%")
+      .style("font-size", "1rem")
+      .style("font-weight", "600")
+      .style("opacity", "0.9")
+      .style("margin-bottom", "10px")
+      .text("การโหวตมติแบ่งตามแต่พรรคการเมืองเพื่อดูจำนวนการลงความเห็นของแต่ละพรรค");
 
   // --- SVG base ---
   const svg = chartBody
