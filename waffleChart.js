@@ -6,11 +6,26 @@ export function createWaffleChart(containerSelector, records, eventBus) {
   container.selectAll("*").remove();
 
   const currentYear = records.length > 0 ? records[0].year : "Data";
-  container.append("div")
-    .attr("class", "waffle-chart-title text-body")
+  // ------- NEW: Header + Sub-header -------
+  const head = container.append("div")
+    .attr("class", "waffle-chart-head");
+ 
+  // Header
+  head.append("div")
+    .attr("class", "waffle-chart-title")
     .style("text-align", "left")
     .style("font-size", "1.2rem")
-    .style("font-weight", "bold")
+    .style("font-weight", "800")
+    .style("margin-bottom", "4px")
+    .text("เดือนนี้ใครขยัน เดือนไหนใครหายตัว");
+ 
+  // Sub-header (was the old title)
+  head.append("div")
+    .attr("class", "waffle-chart-subtitle text-body")
+    .style("text-align", "left")
+    .style("font-size", "1rem")
+    .style("font-weight", "600")
+    .style("opacity", "0.9")
     .style("margin-bottom", "10px")
     .text(`การเข้าร่วมลงมติรายเดือน ปี ${currentYear}`);
 
