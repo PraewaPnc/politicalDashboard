@@ -33,7 +33,7 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     .attr("class", "side-waffle-chart-title")
     .style("text-align", "left")
     .style("width", "100%")
-    .style("font-size", "1.4rem")
+    .style("font-size", "1.2rem")
     .style("font-weight", "800")
     .style("margin-bottom", "4px")
     .text("พรรคที่คุณเชียร์ โหวตตามสัญญารึเปล่า");
