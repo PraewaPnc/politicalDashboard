@@ -147,15 +147,22 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
 
     // --- Case 2: Record selected (or latestRecord is now set) ---
     titleContainer
-        .html(`
-          <p class="pie-heading">สัดส่วนการโหวตรายมติ</p>
-          <p class="pie-title-text">
+      .html(`
+        <div class="pie-chart-title"
+            style="text-align:center;font-size:1.4rem;font-weight:800;margin-bottom:4px;">
+          ผลที่ได้มี มติเอกฉันท์ หรือ เสียงแตก
+        </div>
+        <div class="pie-chart-subtitle text-body"
+            style="text-align:center;font-size:1rem;font-weight:600;opacity:.9;margin-bottom:10px;">
+          สัดส่วนการโหวตมติภายในวาระการประชุม
+        </div>
+        <p class="pie-title-text"> มติ: 
             ${record.title}
             <span class="pie-date-text"> — ${record.dateStr}</span>
           </p>
-        `)
-        .style("display", "block")
-        .datum(record);
+      `)
+      .style("display", "block")
+      .datum(record);
 
 
     currentData = Object.entries(
