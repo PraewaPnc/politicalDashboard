@@ -152,7 +152,7 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     .attr("viewBox", `0 0 ${svgSize} ${chartHeight + 40}`)
     .attr("preserveAspectRatio", "xMidYMid meet");
 
-  const g = svg.append("g").attr("transform", `translate(${svgSize / 2}, ${chartHeight * 0.9})`);
+  const g = svg.append("g").attr("transform", `translate(${svgSize / 2}, ${chartHeight * 0.8})`);
 
 
   // ✅ เรียง top พรรคจากมากไปน้อย
