@@ -99,7 +99,7 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
     .style("margin-bottom","2px");
 
   const mainTitleEl = titleDiv.append("div")
-    .text("สถานะการลงมติ")
+    .text("กฎหมายไหนรอด กฎหมายไหนร่วง")
     .style("text-align","left")
     .style("font","600 20px/1.4 Sarabun");
 
