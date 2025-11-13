@@ -20,7 +20,7 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
     W = size;
     H = size;
     // UPDATED: Decreased factor from 0.4 to 0.35 to reduce radius
-    R = size * 0.30; // Radius is now about 30% of the container size 
+    R = size * 0.35; // Radius is now about 30% of the container size 
 
     return { W, H, R };
   }
@@ -145,20 +145,19 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
       }
     }
 
-    // --- Case 2: Record selected (or latestRecord is now set) ---
+        // --- Case 2: Record selected (or latestRecord is now set) ---
     titleContainer
       .html(`
         <div class="pie-chart-title"
-            style="text-align:center;font-size:1.4rem;font-weight:800;margin-bottom:4px;">
+            style="text-align:left;font-size:1.2rem;font-weight:800;margin-bottom:4px;">
           ผลที่ได้มี มติเอกฉันท์ หรือ เสียงแตก
         </div>
         <div class="pie-chart-subtitle text-body"
-            style="text-align:center;font-size:1rem;font-weight:600;opacity:.9;margin-bottom:10px;">
+            style="text-align:left;font-size:0.9rem;font-weight:600;opacity:.9;margin-bottom:4px;">
           สัดส่วนการโหวตมติภายในวาระการประชุม
         </div>
-        <p class="pie-title-text"> มติ: 
+        <p class="pie-title-text" style="text-align:left;font-size:0.8rem;margin-bottom:4px;"> มติ: 
             ${record.title}
-            <span class="pie-date-text"> — ${record.dateStr}</span>
           </p>
       `)
       .style("display", "block")
