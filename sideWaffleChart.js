@@ -1,35 +1,25 @@
-// sideWaffleChart.js
-
 export function createSideWaffleChart(containerSelector, eventBus, colorByParty, latestRecord, totalMPs = 700) {
   const container = d3.select(containerSelector);
   container.selectAll("*").remove();
 
-  // --- Container Wrapper ---
+  // Wrapper (Flex container: column)
   const wrapper = container
     .append("div")
     .attr("class", "side-waffle-chart-wrapper")
     .style("width", "100%")
     .style("height", "100%")
     .style("display", "flex")
-    .style("flex-direction", "column")
-    .style("justify-content", "space-between"); // ✅ แทน flex-start
+    .style("flex-direction", "column");
 
-  // --- Chart Body (title + svg) ---
-  const chartBody = wrapper
+  // 1. Header Container (Title/Subtitle)
+  const headerContainer = wrapper
     .append("div")
-    .attr("class", "side-waffle-chart-body")
-    .style("display", "flex")
-    .style("flex-direction", "column")
-    .style("align-items", "center")
-    .style("flex", "1 1 auto")
-    .style("overflow", "hidden");
-
- // --- Chart Title ---
-    const head = chartBody.append("div")
-    .attr("class", "side-waffle-chart-head");
+    .attr("class", "side-waffle-header")
+    .style("padding-bottom", "10px")
+    .style("flex", "0 0 auto"); // ป้องกันการยืดหดของส่วนหัว
  
-    // Header
-    head.append("div")
+  // Header
+  headerContainer.append("div")
     .attr("class", "side-waffle-chart-title")
     .style("text-align", "left")
     .style("width", "100%")
@@ -38,97 +28,123 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     .style("margin-bottom", "4px")
     .text("พรรคที่คุณเชียร์ โหวตตามสัญญารึเปล่า");
  
-    // Sub-header (ของเดิม)
-    head.append("div")
-      .attr("class", "side-waffle-chart-subtitle text-body")
-      .style("text-align", "left")
-      .style("width", "100%")
-      .style("font-size", "1rem")
-      .style("font-weight", "600")
-      .style("opacity", "0.9")
-      .style("margin-bottom", "10px")
-      .text("การโหวตมติแบ่งตามแต่พรรคการเมืองเพื่อดูจำนวนการลงความเห็นของแต่ละพรรค");
+  // Sub-header
+  headerContainer.append("div")
+    .attr("class", "side-waffle-chart-subtitle text-body")
+    .style("text-align", "left")
+    .style("width", "100%")
+    .style("font-size", "0.9rem")
+    .style("font-weight", "600")
+    .style("opacity", "0.9")
+    .text("การโหวตมติแบ่งตามแต่พรรคการเมืองเพื่อดูจำนวนการลงความเห็นของแต่ละพรรค");
 
-  // --- SVG base ---
-  const svg = chartBody
+  // 2. SVG Container (Chart Body)
+  const svgContainer = wrapper
+    .append("div")
+    .attr("class", "side-waffle-svg-container")
+    .style("flex", "1 1 auto") // ขยายเต็มพื้นที่ที่เหลือ
+    .style("display", "flex")
+    .style("justify-content", "center")
+    .style("align-items", "center")
+    .style("overflow", "hidden");
+
+  // SVG
+  const svg = svgContainer
     .append("svg")
-    .attr("width", "100%")
-    .attr("height", "auto")
-    .attr("viewBox", "0 0 240 240")
+    // กำหนด width/height เป็น 100% เพื่อให้ฟิตกับ svgContainer
+    .attr("width", "100%") 
+    .attr("height", "100%")
     .attr("preserveAspectRatio", "xMidYMid meet")
-    .style("overflow", "hidden")
     .style("display", "block");
 
+  // 3. Legend Container
+  const legendContainer = wrapper
+    .append("div")
+    .attr("class", "side-waffle-legend-container")
+    .style("flex", "0 0 auto")
+    .style("padding-top", "10px");
 
-  // --- Internal state ---
+  // States
   let lastRecord = latestRecord || null;
   let lastCategory = lastRecord ? "agree" : null;
   let selectedParty = null;
-  let shape = "square"; //
+  let shape = "square"; // square | person | bar
 
-  // --- Setter for shape ---
   function setShape(newShape) {
-    shape = newShape;
+    if (newShape === "circle") {
+      shape = "bar";
+    } else {
+      shape = newShape;
+    }
     render();
   }
 
-  // --- Render function ---
   function render() {
-    // เคลียร์กราฟเก่า (เว้น defs)
     svg.selectAll("*:not(defs)").remove();
-    wrapper.selectAll(".side-legend").remove();
+    legendContainer.selectAll(".side-legend").remove(); 
 
     if (!lastRecord || !lastCategory) return;
 
-    // กรองข้อมูลตาม category
+    // Filter votes
     const votes = (lastRecord.votes || []).filter(v => {
       const opt = (v.option_en || "").toLowerCase();
       if (lastCategory === "agree") return opt.includes("agree");
       if (lastCategory === "disagree") return opt.includes("disagree");
       if (lastCategory === "abstain") return opt.includes("abstain");
-      if (lastCategory === "novote" || lastCategory === "no vote") {
-        return opt.includes("novote") || opt.includes("no vote");
-      }
+      if (lastCategory === "novote" || lastCategory === "no vote")
+        return opt.includes("no vote") || opt.includes("novote");
       return false;
     });
 
-    // รวมจำนวนตามพรรค
+    // Group by party
     const grouped = d3.rollup(votes, v => v.length, v => v.voter_party || "Other");
     const sortedParties = Array.from(grouped.entries()).sort((a, b) => b[1] - a[1]);
-    const top = sortedParties.slice(0, 6);
-    const rest = sortedParties.slice(6);
-    const otherSum = d3.sum(rest, d => d[1]);
-    if (otherSum > 0) top.push(["Other", otherSum]);
 
-    const total = d3.sum(top, d => d[1]);
-    if (total === 0) return;
-
-    // --- สร้าง cells ---
-    const maxCells = 200;
-    const factor = Math.max(1, Math.ceil(total / maxCells));
-    const cells = [];
-    top.forEach(([party, count]) => {
-      const cellCount = Math.max(1, Math.round(count / factor));
-      for (let i = 0; i < cellCount; i++) cells.push(party);
-    });
-
-    // --- Layout parameters ---
-    const cols = 20;
-    const cellSize = 10;
-    const gap = 1.5;
-    const width = cols * (cellSize + gap);
-    const rows = Math.ceil(cells.length / cols);
-    const height = rows * (cellSize + gap);
-
-    // ✅ ปรับ viewBox ตามจำนวน cell
-    svg
-      .attr("viewBox", `0 0 ${width + 20} ${height + 20}`)
-      .attr("preserveAspectRatio", "xMidYMid meet");
-
-    const g = svg.append("g").attr("transform", "translate(10,10)");
-
-    // --- วาด cells ---
+    let partiesToShow;
     if (shape === "square") {
+      const top6 = sortedParties.slice(0, 6);
+      const rest = sortedParties.slice(6);
+      const otherSum = d3.sum(rest, d => d[1]);
+      if (otherSum > 0) top6.push(["Other", otherSum]);
+      partiesToShow = top6;
+    } else if (shape === "bar") {
+      partiesToShow = sortedParties;
+    }
+
+    const total = d3.sum(partiesToShow, d => d[1]);
+    if (total === 0) return;
+    
+    // ==========================
+    //     WAFFLE MODE
+    // ==========================
+    if (shape === "square") {
+      // ✅ [NEW] บังคับให้ SVG Container มี Aspect Ratio ที่เหมาะสมกับ Waffle
+      svgContainer.style("max-height", "70%");
+      svg.attr("width", "100%").attr("height", "100%"); // ใช้ขนาดเต็มพื้นที่ของ container
+
+      const maxCells = 200;
+      const factor = Math.max(1, Math.ceil(total / maxCells));
+
+      const cells = [];
+      partiesToShow.forEach(([party, count]) => {
+        const cellCount = Math.max(1, Math.round(count / factor));
+        for (let i = 0; i < cellCount; i++) cells.push(party);
+      });
+
+      const cols = 20;
+      const cellSize = 10;
+      const gap = 1.5;
+
+      const rows = Math.ceil(cells.length / cols);
+      const w = cols * (cellSize + gap) - gap;
+      const h = rows * (cellSize + gap) - gap;
+
+      // ✅ [FIX] ตั้งค่า viewBox ให้ฟิตกับขนาดกราฟ
+      // เพิ่ม padding 1px รอบ ๆ
+      svg.attr("viewBox", `0 0 ${w + 1} ${h + 1}`);
+      
+      const g = svg.append("g").attr("transform", `translate(0.5, 0.5)`); 
+
       g.selectAll("rect.cell")
         .data(cells)
         .join("rect")
@@ -137,156 +153,105 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
         .attr("width", cellSize)
         .attr("height", cellSize)
         .attr("rx", 1.5)
-        .attr("fill", d =>
-          selectedParty && d !== selectedParty ? "#dcdcdc" : colorByParty[d] || "#bbb"
-        )
-        .classed("dim", d => selectedParty && d !== selectedParty)
-        .classed("highlight", d => selectedParty && d === selectedParty);
-} else {
-  // ✅ ใช้ factor ที่คำนวณไว้แล้ว (ไม่สร้าง legend ใหม่)
-  const svgSize = 240;
-  const chartHeight = 200;
+        .attr("fill", d => colorByParty[d] || "#bbb");
 
-  svg
-    .attr("height", chartHeight + 40)
-    .attr("viewBox", `0 0 ${svgSize} ${chartHeight + 40}`)
-    .attr("preserveAspectRatio", "xMidYMid meet");
-
-  const g = svg.append("g").attr("transform", `translate(${svgSize / 2}, ${chartHeight * 0.8})`);
-
-
-  // ✅ เรียง top พรรคจากมากไปน้อย
-  const sortedTop = [...top].sort((a, b) => b[1] - a[1]);
-
-  // ✅ ใช้ factor ที่มีอยู่แล้ว -> 1 จุดแทนกี่โหวต
-  const circlesData = [];
-  sortedTop.forEach(([party, count]) => {
-    const reducedCount = Math.max(1, Math.round(count / factor));
-    for (let i = 0; i < reducedCount; i++) {
-      circlesData.push({ voter_party: party });
-    }
-  });
-
-  // ✅ ควบคุมจำนวน layer & สัดส่วนให้คงรูปสวย
-  const totalSeats = circlesData.length;
-  const maxSeats = 200;
-  const scaleFactor = Math.sqrt(totalSeats / maxSeats);
-
-  const layers = Math.max(5, Math.round(5 * scaleFactor));
-  const basePoints = Math.round(24 * scaleFactor);
-  const radiusStart = 55;
-  const radiusStep = 16;
-  const angleStart = Math.PI;
-  const angleEnd = 0;
-
-  let index = 0;
-  const positions = [];
-
-  for (let r = 0; r < layers; r++) {
-    const radius = radiusStart + r * radiusStep;
-    const n = Math.round(basePoints * (radius / radiusStart) * 0.8);
-    const angleStep = (angleEnd - angleStart) / (n - 1);
-
-    for (let i = 0; i < n; i++) {
-      if (index >= circlesData.length) break;
-      const angle = angleStart + i * angleStep;
-      positions.push({
-        ...circlesData[index],
-        x: Math.cos(angle) * radius,
-        y: -Math.sin(angle) * radius,
-      });
-      index++;
-    }
-  }
-
-  // ✅ วาดวงกลม
-  const circles = g
-    .selectAll("circle.cell")
-    .data(positions)
-    .join("circle")
-    .attr("cx", d => d.x)
-    .attr("cy", d => d.y)
-    .attr("r", 4.5)
-    .attr("fill", d =>
-      selectedParty && d.voter_party !== selectedParty
-        ? "#dcdcdc"
-        : colorByParty[d.voter_party] || "#bbb"
-    )
-    .style("transition", "fill 0.15s ease-out");
-
-  // ✅ Tooltip
-  circles
-    .on("mouseover", function (event, d) {
-      d3.select(this).attr("stroke", "#000").attr("stroke-width", 1.3);
-      const tooltip = d3.select("body")
+      // ⭐⭐⭐ SQUARE LEGEND ⭐⭐⭐
+      legendContainer
         .append("div")
-        .attr("class", "tooltip")
-        .style("position", "absolute")
-        .style("padding", "4px 8px")
-        .style("background", "#333")
-        .style("color", "#fff")
-        .style("border-radius", "4px")
-        .style("font-size", "12px")
-        .style("pointer-events", "none")
-        .style("opacity", 0)
-        .style("z-index", 1000)
-        .text(d.voter_party || "Unknown");
-
-      tooltip.transition().duration(60).style("opacity", 0.95);
-      tooltip
-        .style("left", `${event.pageX + 5}px`)
-        .style("top", `${event.pageY - 10}px`);
-    })
-    .on("mousemove", function (event) {
-      d3.select("body").select(".tooltip")
-        .style("left", `${event.pageX + 5}px`)
-        .style("top", `${event.pageY - 10}px`);
-    })
-    .on("mouseout", function () {
-      d3.select(this).attr("stroke", "none");
-      d3.select("body").selectAll(".tooltip")
-        .transition().duration(50).style("opacity", 0).remove();
-    });
-}
-
-
- 
-    // --- สร้าง legend ด้านล่าง ---
-    wrapper
-      .append("div")
-      .attr("class", "side-legend text-body")
-      .style("margin-top", "4px")
-      .style("max-width", "100%")
-      .style("overflow", "hidden")
-      .html(() => {
-        return (
-          `<div class="text-body" style="font-weight:600; margin-bottom:6px;">${lastCategory} — total ${total} 
-          <i style="font-size:11px;">  ** 1ช่อง ≈ ${factor} โหวต</i></div>` +
-          top
-            .map(([party, count]) => {
-              const color = colorByParty[party] || "#bbb";
-              const dimStyle = selectedParty && party !== selectedParty ? "opacity:0.35" : "";
-              const percent = (count / totalMPs) * 100;
-              const displayCount = `${count} (${percent.toFixed(1)}%)`;
-              return `
-                <div style="display:flex; justify-content:space-between; align-items:center; margin:3px 0;">
-                  <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="width:12px; height:12px; background:${color}; display:inline-block;"></span>
-                    <span class="text-body" style="font-size:13px;">${party}</span>
+        .attr("class", "side-legend text-body")
+        .style("max-width", "100%")
+        .style("overflow", "hidden")
+        .html(() => {
+          return (
+            `<div class="text-body" style="font-weight:600; margin-bottom:6px;">
+              ${lastCategory} — total ${total} 
+              <i style="font-size:11px;"> ** 1ช่อง ≈ ${factor} โหวต</i>
+            </div>` +
+            partiesToShow
+              .map(([party, count]) => {
+                const color = colorByParty[party] || "#bbb";
+                const percent = (count / totalMPs * 100).toFixed(1);
+                return `
+                  <div style="display:flex; justify-content:space-between; align-items:center; margin:3px 0;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span style="width:12px; height:12px; background:${color}; display:inline-block;"></span>
+                      <span class="text-body" style="font-size:13px;">${party}</span>
+                    </div>
+                    <div class="text-body-secondary" style="font-size:13px">
+                      ${count} (${percent}%)
+                    </div>
                   </div>
-                  <div class="text-body-secondary" style="${dimStyle}; font-size:13px">${displayCount}</div>
-                </div>
-              `;
-            })
-            .join("")
-        );
-      });
+                `;
+              })
+              .join("")
+          );
+        });
+    }
+
+    // ==========================
+    //       BAR MODE
+    // ==========================
+    else if (shape === "bar") {
+      // ✅ [FIX] ลบ max-height ที่ตั้งไว้สำหรับ Waffle mode
+      svgContainer.style("max-height", null);
+      
+      // ตั้งค่า SVG ให้ปรับขนาดตามเนื้อหา Bar Chart
+      svg.attr("width", "100%").attr("height", "auto"); 
+      
+      const chartWidth = 450;
+      const barHeight = 22;
+      const barGap = 8;
+      const margin = { top: 20, right: 40, bottom: 20, left: 110 };
+
+      const barCount = partiesToShow.length;
+      const svgHeight = margin.top + margin.bottom + barCount * (barHeight + barGap);
+
+      // ตั้งค่า viewBox และ height ให้ Bar Chart
+      svg
+        .attr("viewBox", `0 0 ${chartWidth} ${svgHeight}`)
+        .attr("height", svgHeight); 
+
+      const g = svg.append("g").attr("transform", `translate(${margin.left}, ${margin.top})`);
+      
+      const maxValue = d3.max(partiesToShow, d => d[1]);
+
+      const x = d3.scaleLinear()
+        .domain([0, maxValue])
+        .range([0, chartWidth - margin.left - margin.right]);
+        
+      // ... (Bar Chart drawing logic remains the same)
+      g.selectAll("text.party")
+        .data(partiesToShow)
+        .join("text")
+        .attr("x", -10)
+        .attr("y", (_, i) => i * (barHeight + barGap) + barHeight / 1.3)
+        .attr("text-anchor", "end")
+        .style("font-size", "12px")
+        .text(d => d[0]);
+
+      g.selectAll("rect.bar")
+        .data(partiesToShow)
+        .join("rect")
+        .attr("x", 0)
+        .attr("y", (_, i) => i * (barHeight + barGap))
+        .attr("width", d => x(d[1]))
+        .attr("height", barHeight)
+        .attr("fill", d => colorByParty[d[0]] || "#bbb");
+
+      g.selectAll("text.value")
+        .data(partiesToShow)
+        .join("text")
+        .attr("x", d => x(d[1]) + 4)
+        .attr("y", (_, i) => i * (barHeight + barGap) + barHeight / 1.3)
+        .style("font-size", "11px")
+        .attr("fill", "#333")
+        .text(d => d[1]);
+    }
   }
 
-  // --- Event listeners ---
+  // Event listeners
   eventBus.on("waffle:selected", rec => {
     lastRecord = rec;
-    lastCategory = lastCategory || "agree";
     render();
   });
 
@@ -296,13 +261,11 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
   });
 
   eventBus.on("party:filterChanged", p => {
-    selectedParty = p === "all" || !p ? null : p;
+    selectedParty = p === "all" ? null : p;
     render();
   });
 
-  // --- Initial render ---
   if (lastRecord) render();
 
-  // --- Public API ---
   return { setShape, render };
 }
