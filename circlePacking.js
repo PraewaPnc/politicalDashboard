@@ -31,6 +31,15 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
     agree:    (d) => d?.VoteEvent?.agree_count    ?? d?.agree_count    ?? d?.yea ?? d?.approve ?? d?.for ?? d?.voteAgree ?? 0,
     disagree: (d) => d?.VoteEvent?.disagree_count ?? d?.disagree_count ?? d?.nay ?? d?.reject  ?? d?.against ?? d?.voteDisagree ?? 0,
     present:  (d) => d?.presentCount ?? d?.present ?? d?.attend_count ?? d?.present_total ?? d?.VoteEvent?.present_count ?? 0,
+
+    // ⭐ NEW: getter สำหรับวันที่เริ่ม (ใช้กับ title bar)
+    startDate: (d) =>
+      d?.start_date ??
+      d?.VoteEvent?.start_date ??
+      d?.VoteEvent?.date ??
+      d?.date ??
+      d?.meeting_date ??
+      null,
   };
 
   /* ---------------- Normalize result → PASS / FAIL / N/A ---------------- */
@@ -99,7 +108,7 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
     .style("margin-bottom","2px");
 
   const mainTitleEl = titleDiv.append("div")
-    .text("กฎหมายไหนรอด กฎหมายไหนร่วง")
+    .text("ร่างกฎหมายไหนรอด ร่างกฎหมายไหนร่วง")
     .style("text-align","left")
     .style("font","600 20px/1.4 Sarabun");
 
@@ -109,7 +118,7 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
     .style("font","600 14px/1 Sarabun")
     .style("opacity","0.9");
 
-    const selectedTitleEl = titleDiv.append("div")
+  const selectedTitleEl = titleDiv.append("div")
     .text("")
     .style("font","500 12px/1.3 Sarabun")
     .style("opacity","0.85")
@@ -141,78 +150,78 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
   const gYearLbls   = svg.append("g").attr("pointer-events","none");
 
   /* ---------------- Legend (Minimal) — Plain-language version ---------------- */
-if (legendMode === "minimal") {
-  const bottomLegend = container.append("div")
-    .attr("class", "cp-size-legend-bottom")
-    .style("display","grid")
-    .style("grid-template-rows","auto auto auto")
-    .style("justify-items","center")
-    .style("row-gap","4px")
-    .style("margin-top","6px")
-    .style("color","currentColor")
-    .style("font-size","12px");
+  if (legendMode === "minimal") {
+    const bottomLegend = container.append("div")
+      .attr("class", "cp-size-legend-bottom")
+      .style("display","grid")
+      .style("grid-template-rows","auto auto auto")
+      .style("justify-items","center")
+      .style("row-gap","4px")
+      .style("margin-top","6px")
+      .style("color","currentColor")
+      .style("font-size","12px");
 
-  // ✅ ข้อความภาษาคนทั่วไป
-  bottomLegend.append("div")
-    .style("opacity", 0.95)
-    .style("text-align", "center")
-    .html(`
-      <b>ขนาดวงกลม = ความสูสีของผลโหวต</b><br>
-      
-    `);
+    // ✅ ข้อความภาษาคนทั่วไป
+    bottomLegend.append("div")
+      .style("opacity", 0.95)
+      .style("text-align", "center")
+      .html(`
+        <b>ขนาดวงกลม = ความสูสีของผลโหวต</b><br>
+        
+      `);
 
-  // ✅ แถว visual (วงเล็ก → ลูกศร → วงใหญ่)
-  const row = bottomLegend.append("div")
-    .style("display","grid")
-    .style("grid-template-columns","min-content 1fr min-content")
-    .style("align-items","center")
-    .style("column-gap","6px")
-    .style("width","100%")
-    .style("max-width","260px");
+    // ✅ แถว visual (วงเล็ก → ลูกศร → วงใหญ่)
+    const row = bottomLegend.append("div")
+      .style("display","grid")
+      .style("grid-template-columns","min-content 1fr min-content")
+      .style("align-items","center")
+      .style("column-gap","6px")
+      .style("width","100%")
+      .style("max-width","260px");
 
-  const svgLegend = row.append("svg")
-    .attr("viewBox","0 0 120 40")
-    .attr("preserveAspectRatio","xMidYMid meet")
-    .style("width","100%")
-    .style("height","40px")
-    .style("grid-column","1 / 4")
-    .style("overflow","visible");
+    const svgLegend = row.append("svg")
+      .attr("viewBox","0 0 120 40")
+      .attr("preserveAspectRatio","xMidYMid meet")
+      .style("width","100%")
+      .style("height","40px")
+      .style("grid-column","1 / 4")
+      .style("overflow","visible");
 
-  const arrowId = `cp-arrow-${Math.random().toString(36).slice(2,8)}`;
-  svgLegend.append("defs").append("marker")
-    .attr("id", arrowId).attr("viewBox","0 0 8 8")
-    .attr("refX","7").attr("refY","4")
-    .attr("markerWidth","4").attr("markerHeight","4")
-    .attr("orient","auto-start-reverse")
-    .append("path").attr("d","M 0 0 L 8 4 L 0 8 z").attr("fill","currentColor");
+    const arrowId = `cp-arrow-${Math.random().toString(36).slice(2,8)}`;
+    svgLegend.append("defs").append("marker")
+      .attr("id", arrowId).attr("viewBox","0 0 8 8")
+      .attr("refX","7").attr("refY","4")
+      .attr("markerWidth","4").attr("markerHeight","4")
+      .attr("orient","auto-start-reverse")
+      .append("path").attr("d","M 0 0 L 8 4 L 0 8 z").attr("fill","currentColor");
 
-  // 🔘 ขยับวงกลมขึ้นนิดนึงให้บาลานซ์
-  const small = { cx: 15,  cy: 13, r: 3 };
-  const large = { cx: 105, cy: 13, r: 8 };
+    // 🔘 ขยับวงกลมขึ้นนิดนึงให้บาลานซ์
+    const small = { cx: 15,  cy: 13, r: 3 };
+    const large = { cx: 105, cy: 13, r: 8 };
 
-  svgLegend.append("circle")
-    .attr("cx", small.cx).attr("cy", small.cy).attr("r", small.r)
-    .attr("fill","#bdbdbd").attr("stroke","#9e9e9e");
+    svgLegend.append("circle")
+      .attr("cx", small.cx).attr("cy", small.cy).attr("r", small.r)
+      .attr("fill","#bdbdbd").attr("stroke","#9e9e9e");
 
-  svgLegend.append("line")
-    .attr("x1", small.cx + small.r + 4).attr("y1", small.cy)
-    .attr("x2", large.cx - large.r - 4).attr("y2", large.cy)
-    .attr("stroke","currentColor").attr("stroke-width",1.4)
-    .attr("marker-end", `url(#${arrowId})`);
+    svgLegend.append("line")
+      .attr("x1", small.cx + small.r + 4).attr("y1", small.cy)
+      .attr("x2", large.cx - large.r - 4).attr("y2", large.cy)
+      .attr("stroke","currentColor").attr("stroke-width",1.4)
+      .attr("marker-end", `url(#${arrowId})`);
 
-  svgLegend.append("circle")
-    .attr("cx", large.cx).attr("cy", large.cy).attr("r", large.r)
-    .attr("fill","#bdbdbd").attr("stroke","#9e9e9e");
+    svgLegend.append("circle")
+      .attr("cx", large.cx).attr("cy", large.cy).attr("r", large.r)
+      .attr("fill","#bdbdbd").attr("stroke","#9e9e9e");
 
-  // ✅ ป้ายใต้แต่ละวงให้ไม่ตัดขอบ (y = 34)
-  svgLegend.append("text")
-    .attr("x", small.cx).attr("y", 34).attr("text-anchor","middle")
-    .style("font","500 12px Sarabun").text("สูสี ≈ 0–10%");
+    // ✅ ป้ายใต้แต่ละวงให้ไม่ตัดขอบ (y = 34)
+    svgLegend.append("text")
+      .attr("x", small.cx).attr("y", 34).attr("text-anchor","middle")
+      .style("font","500 11px Sarabun").text("สูสี ≈ 0–10%");
 
-  svgLegend.append("text")
-    .attr("x", large.cx).attr("y", 34).attr("text-anchor","middle")
-    .style("font","500 12px Sarabun").text("ชนะขาด ≥ 40%");
-}
+    svgLegend.append("text")
+      .attr("x", large.cx).attr("y", 34).attr("text-anchor","middle")
+      .style("font","500 11px Sarabun").text("ชนะขาด ≥ 40%");
+  }
 
   /* ---------------- State ---------------- */
   let root, focus, view;
@@ -255,6 +264,39 @@ if (legendMode === "minimal") {
   }
 
   /* ---------------- Helpers ---------------- */
+
+  // ⭐ NEW: แปลง start date เป็น "(YYYY-MM-DD)" ไว้ต่อท้ายชื่อ
+  function formatStartDateForLabel(record) {
+    if (!record) return "";
+    const raw = getters.startDate?.(record);
+    if (!raw) return "";
+
+    let d = null;
+
+    if (raw instanceof Date && !isNaN(raw)) {
+      d = raw;
+    } else if (typeof raw === "string") {
+      const m = raw.match(/\d{4}-\d{2}-\d{2}/);
+      if (m) {
+        d = new Date(m[0]);
+      } else {
+        const tmp = new Date(raw);
+        if (!isNaN(tmp)) d = tmp;
+      }
+    } else {
+      const tmp = new Date(raw);
+      if (!isNaN(tmp)) d = tmp;
+    }
+
+    if (!d) return "";
+
+    const yyyy = d.getFullYear();
+    const mm   = String(d.getMonth() + 1).padStart(2, "0");
+    const dd   = String(d.getDate()).padStart(2, "0");
+
+    return ` (${yyyy}-${mm}-${dd})`;
+  }
+
   function nodeResultKey(n){
     if (!n) return null;
     if (n.depth === 1) return n.data?.key ?? n.data?.name;
@@ -321,9 +363,15 @@ if (legendMode === "minimal") {
               const key    = d.data?.id ?? d.data?.name;
               const record = d.data?.raw;
               setActiveByKey(key);
+
+              // ส่งสัญญาณให้ waffle/popup เหมือนเดิม
               localBus.dispatch("waffle:select", { billId: key, title: d.data?.name, record });
+
+              // ⭐ NEW: อัปเดต title = ชื่อ + วันที่
               lastSelectedRecord = record || null;
-              selectedTitleEl.text(d.data?.name ?? "").datum(lastSelectedRecord);
+              const suffix = formatStartDateForLabel(lastSelectedRecord);
+              selectedTitleEl.text((d.data?.name ?? "") + suffix).datum(lastSelectedRecord);
+
               event.stopPropagation();
               return;
             }
@@ -363,10 +411,11 @@ if (legendMode === "minimal") {
     const yearText = gYearLbls.selectAll("text")
       .data(yearNodes, d => d.data.name)
       .join("text")
+      .attr("class", "cp-year-label")        // 👈 เพิ่ม class สำหรับเลขปี
       .attr("text-anchor","middle")
       .style("font","12px Sarabun")
       .style("font-weight","600")
-      .style("fill","#222")
+      // .style("fill","#222")  // 👈 เอาออก ให้ใช้จาก CSS แทน
       .style("display","inline")
       .text(d => d.data.name);
 
@@ -390,10 +439,18 @@ if (legendMode === "minimal") {
       gResultLbls.selectAll("text")
         .attr("transform", d => {
           const x = (d.x - v[0]) * k;
-          const y = (d.y - v[1]) * k - d.r * k - OUT;
-          return `translate(${x},${y})`;
-        })
-        .style("display", () => (focus === root ? "inline" : "none"));
+          const yCenter = (d.y - v[1]) * k;
+          const rPix = d.r * k;
+          const resKey = nodeResultKey(d);
+
+    // ผ่าน / รอรวบรวมผล = อยู่ด้านบน, ไม่ผ่าน = ใต้สุดของวงกลม
+           const y = (resKey === FAIL)
+           ? yCenter + rPix + OUT + 8     // ⬇ ใต้สุดของวงกลม
+           : yCenter - rPix - OUT;     // ⬆ ด้านบนเหมือนเดิม
+
+    return `translate(${x},${y})`;
+  })
+  .style("display", () => (focus === root ? "inline" : "none"));
 
       gYearLbls.selectAll("text")
         .attr("transform", d => {
@@ -430,7 +487,14 @@ if (legendMode === "minimal") {
           gResultLbls.selectAll("text")
             .attr("transform", n => {
               const x = (n.x - v[0]) * k;
-              const y = (n.y - v[1]) * k - n.r * k - OUT;
+              const yCenter = (n.y - v[1]) * k;
+              const rPix = n.r * k;
+              const resKey = nodeResultKey(n);
+
+              const y = (resKey === FAIL)
+              ? yCenter + rPix + OUT + 8     // ⬇ ใต้สุดวงกลม “ไม่ผ่าน”
+              : yCenter - rPix - OUT;     // ⬆ ด้านบนของ “ผ่าน / รอรวบรวมผล”
+
               return `translate(${x},${y})`;
             })
             .style("display", () => (d === root ? "inline" : "none"));
@@ -467,17 +531,26 @@ if (legendMode === "minimal") {
     const nameForLabel =
       selectedNode?.data?.name ??
       (selectedKey != null ? String(selectedKey) : "");
+
+    // ⭐ NEW: ใช้ raw record เพื่อแปะวันที่ต่อท้าย
     lastSelectedRecord = selectedNode?.data?.raw ?? lastSelectedRecord ?? null;
-    selectedTitleEl.text(nameForLabel || "").datum(lastSelectedRecord || null);
+    const suffix = formatStartDateForLabel(lastSelectedRecord);
+
+    selectedTitleEl.text((nameForLabel || "") + suffix).datum(lastSelectedRecord || null);
   }
 
   const localBus = bus ?? createMiniBus();
 
+  // ⭐ NEW: ถ้าได้รับสัญญาณจาก waffle ให้ตั้ง active + ต่อท้ายวันที่เหมือนกัน
   localBus.on?.("waffle:select", ({ billId, title, record }) => {
     const key = billId ?? title;
     setActiveByKey(key);
     lastSelectedRecord = record || lastSelectedRecord || null;
-    selectedTitleEl.text(title ?? String(key) ?? "").datum(lastSelectedRecord || null);
+    const suffix = formatStartDateForLabel(lastSelectedRecord);
+
+    selectedTitleEl
+      .text((title ?? String(key) ?? "") + suffix)
+      .datum(lastSelectedRecord || null);
   });
 
   localBus.on?.("waffle:clear", () => {
