@@ -52,8 +52,8 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
   .style("height", "100%")
   .style("display", "flex")
   .style("flex-direction", "column")
-  .style("align-items", "center")
-  .style("justify-content", "center")
+  .style("align-items", "lex-start")
+  .style("justify-content", "lex-start")
   .style("overflow", "hidden"); 
 
   // 👉 Add title ABOVE the SVG here
@@ -61,7 +61,8 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
     .append("div")
     .attr("class", "pie-title")
     .style("display", "none")     // Hidden until data is set
-    .style("text-align", "center")
+    .style("width", "100%")
+    .style("text-align", "left")
     .style("font-size", "1.05rem")
     .style("font-weight", "700")
     .style("margin-bottom", "3px")

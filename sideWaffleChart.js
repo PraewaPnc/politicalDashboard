@@ -1,4 +1,4 @@
-export function createSideWaffleChart(containerSelector, eventBus, colorByParty, latestRecord, totalMPs = 700) {
+export function createSideWaffleChart(containerSelector, eventBus, colorByParty, latestRecord, totalMPs = 500) {
   const container = d3.select(containerSelector);
   container.selectAll("*").remove();
 
@@ -16,9 +16,8 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     .append("div")
     .attr("class", "side-waffle-header")
     .style("padding-bottom", "10px")
-    .style("flex", "0 0 auto"); // ป้องกันการยืดหดของส่วนหัว
- 
-  // Header
+    .style("flex", "0 0 auto");
+
   headerContainer.append("div")
     .attr("class", "side-waffle-chart-title")
     .style("text-align", "left")
@@ -26,9 +25,8 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     .style("font-size", "1.2rem")
     .style("font-weight", "800")
     .style("margin-bottom", "4px")
-    .text("พรรคที่คุณเชียร์ โหวตตามสัญญารึเปล่า");
- 
-  // Sub-header
+    .text("พรรคที่คุณเชียร์ โหวตตามที่คุณคิดรึเปล่า");
+
   headerContainer.append("div")
     .attr("class", "side-waffle-chart-subtitle text-body")
     .style("text-align", "left")
@@ -42,17 +40,15 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
   const svgContainer = wrapper
     .append("div")
     .attr("class", "side-waffle-svg-container")
-    .style("flex", "1 1 auto") // ขยายเต็มพื้นที่ที่เหลือ
+    .style("flex", "1 1 auto")
     .style("display", "flex")
     .style("justify-content", "center")
     .style("align-items", "center")
     .style("overflow", "hidden");
 
-  // SVG
   const svg = svgContainer
     .append("svg")
-    // กำหนด width/height เป็น 100% เพื่อให้ฟิตกับ svgContainer
-    .attr("width", "100%") 
+    .attr("width", "100%")
     .attr("height", "100%")
     .attr("preserveAspectRatio", "xMidYMid meet")
     .style("display", "block");
@@ -81,18 +77,17 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
 
   function render() {
     svg.selectAll("*:not(defs)").remove();
-    legendContainer.selectAll(".side-legend").remove(); 
+    legendContainer.selectAll(".side-legend").remove();
 
     if (!lastRecord || !lastCategory) return;
 
-    // Filter votes
+    // Filter votes by category
     const votes = (lastRecord.votes || []).filter(v => {
       const opt = (v.option_en || "").toLowerCase();
       if (lastCategory === "agree") return opt.includes("agree");
       if (lastCategory === "disagree") return opt.includes("disagree");
       if (lastCategory === "abstain") return opt.includes("abstain");
-      if (lastCategory === "novote" || lastCategory === "no vote")
-        return opt.includes("no vote") || opt.includes("novote");
+      if (lastCategory === "novote") return opt.includes("no vote") || opt.includes("novote");
       return false;
     });
 
@@ -107,20 +102,20 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
       const otherSum = d3.sum(rest, d => d[1]);
       if (otherSum > 0) top6.push(["Other", otherSum]);
       partiesToShow = top6;
-    } else if (shape === "bar") {
+    } else {
       partiesToShow = sortedParties;
     }
 
+    // 🟢 TOTAL votes in this category
     const total = d3.sum(partiesToShow, d => d[1]);
     if (total === 0) return;
-    
+
     // ==========================
     //     WAFFLE MODE
     // ==========================
     if (shape === "square") {
-      // ✅ [NEW] บังคับให้ SVG Container มี Aspect Ratio ที่เหมาะสมกับ Waffle
       svgContainer.style("max-height", "70%");
-      svg.attr("width", "100%").attr("height", "100%"); // ใช้ขนาดเต็มพื้นที่ของ container
+      svg.attr("width", "100%").attr("height", "100%");
 
       const maxCells = 200;
       const factor = Math.max(1, Math.ceil(total / maxCells));
@@ -139,11 +134,9 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
       const w = cols * (cellSize + gap) - gap;
       const h = rows * (cellSize + gap) - gap;
 
-      // ✅ [FIX] ตั้งค่า viewBox ให้ฟิตกับขนาดกราฟ
-      // เพิ่ม padding 1px รอบ ๆ
       svg.attr("viewBox", `0 0 ${w + 1} ${h + 1}`);
-      
-      const g = svg.append("g").attr("transform", `translate(0.5, 0.5)`); 
+
+      const g = svg.append("g").attr("transform", `translate(0.5, 0.5)`);
 
       g.selectAll("rect.cell")
         .data(cells)
@@ -155,7 +148,7 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
         .attr("rx", 1.5)
         .attr("fill", d => colorByParty[d] || "#bbb");
 
-      // ⭐⭐⭐ SQUARE LEGEND ⭐⭐⭐
+      // ⭐⭐⭐ FIXED LEGEND — Percent matches Pie Chart ⭐⭐⭐
       legendContainer
         .append("div")
         .attr("class", "side-legend text-body")
@@ -165,12 +158,15 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
           return (
             `<div class="text-body" style="font-weight:600; margin-bottom:6px;">
               ${lastCategory} — total ${total} 
-              <i style="font-size:11px;"> ** 1ช่อง ≈ ${factor} โหวต</i>
+              <i style="font-size:11px;"> 1ช่อง ≈ ${factor} โหวต</i>
             </div>` +
             partiesToShow
               .map(([party, count]) => {
                 const color = colorByParty[party] || "#bbb";
-                const percent = (count / totalMPs * 100).toFixed(1);
+
+                // ⭐ เปอร์เซ็นต์จาก category นี้เท่านั้น — MATCH PIE ⭐
+                const percent = ((count / total) * 100).toFixed(1);
+
                 return `
                   <div style="display:flex; justify-content:space-between; align-items:center; margin:3px 0;">
                     <div style="display:flex; align-items:center; gap:8px;">
@@ -192,12 +188,9 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     //       BAR MODE
     // ==========================
     else if (shape === "bar") {
-      // ✅ [FIX] ลบ max-height ที่ตั้งไว้สำหรับ Waffle mode
       svgContainer.style("max-height", null);
-      
-      // ตั้งค่า SVG ให้ปรับขนาดตามเนื้อหา Bar Chart
-      svg.attr("width", "100%").attr("height", "auto"); 
-      
+      svg.attr("width", "100%").attr("height", "auto");
+
       const chartWidth = 450;
       const barHeight = 22;
       const barGap = 8;
@@ -206,23 +199,20 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
       const barCount = partiesToShow.length;
       const svgHeight = margin.top + margin.bottom + barCount * (barHeight + barGap);
 
-      // ตั้งค่า viewBox และ height ให้ Bar Chart
-      svg
-        .attr("viewBox", `0 0 ${chartWidth} ${svgHeight}`)
-        .attr("height", svgHeight); 
+      svg.attr("viewBox", `0 0 ${chartWidth} ${svgHeight}`).attr("height", svgHeight);
 
       const g = svg.append("g").attr("transform", `translate(${margin.left}, ${margin.top})`);
-      
+
       const maxValue = d3.max(partiesToShow, d => d[1]);
 
       const x = d3.scaleLinear()
         .domain([0, maxValue])
         .range([0, chartWidth - margin.left - margin.right]);
-        
-      // ... (Bar Chart drawing logic remains the same)
+
       g.selectAll("text.party")
         .data(partiesToShow)
         .join("text")
+        .attr("class", "party")
         .attr("x", -10)
         .attr("y", (_, i) => i * (barHeight + barGap) + barHeight / 1.3)
         .attr("text-anchor", "end")
@@ -241,10 +231,10 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
       g.selectAll("text.value")
         .data(partiesToShow)
         .join("text")
+        .attr("class", "value")
         .attr("x", d => x(d[1]) + 4)
         .attr("y", (_, i) => i * (barHeight + barGap) + barHeight / 1.3)
         .style("font-size", "11px")
-        .attr("fill", "#333")
         .text(d => d[1]);
     }
   }

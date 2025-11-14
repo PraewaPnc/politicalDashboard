@@ -839,3 +839,28 @@ select {
   }
   */
 }
+
+
+
+/* =============== SIDE WAFFLE (BAR MODE) =============== */
+
+/* All SVG text inside #sideWaffleChart uses theme color */
+#sideWaffleChart text,
+#sideWaffleChart tspan {
+  fill: var(--bs-body-color) !important; /* SVG text must use fill */
+  color: var(--bs-body-color) !important;
+}
+
+/* Optional: make axis/value text slightly dimmer */
+#sideWaffleChart text.value,
+#sideWaffleChart tspan.value {
+  fill: var(--bs-secondary-color) !important;
+  color: var(--bs-secondary-color) !important;
+}
+
+/* Party labels on left (ytick) */
+#sideWaffleChart text.party,
+#sideWaffleChart tspan.party {
+  fill: var(--bs-body-color) !important;
+  color: var(--bs-body-color) !important;
+}

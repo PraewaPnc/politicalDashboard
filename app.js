@@ -105,7 +105,7 @@ async function loadData(force = false) {
     renderAll();
   } catch (err) {
     console.error("Failed to load data:", err);
-    if (loader) loader.textContent = "❌ Failed to load data (using cached if available)";
+    if (loader) loader.textContent = "❌ Failed to load data";
   }
 }
 
