@@ -128,6 +128,29 @@ header .subtitle {
     color: var(--bs-body-color) !important; /* Fallback for good measure */
 }
 
+/* Custom rule to ensure all text in the waffle chart adopts the dynamic color */
+#waffleChart text tspan.text-body {
+    /* Use 'fill' for SVG text. We must use the Bootstrap CSS variable 
+       which correctly holds the dark/light mode color. */
+    fill: var(--bs-body-color) !important;
+    color: var(--bs-body-color) !important; /* Fallback for good measure */
+}
+
+/* === Circle Packing: make all SVG text follow light/dark mode === */
+#circlePacking text,
+#circlePacking tspan {
+  /* SVG ใช้ fill เป็นหลักสำหรับตัวหนังสือ */
+  fill: var(--bs-body-color) !important;
+  color: var(--bs-body-color) !important;
+}
+
+/* === Circle Packing: fix year labels to constant color (ไม่ตาม mode) === */
+#circlePacking text.cp-year-label,
+#circlePacking tspan.cp-year-label {
+  fill: #000000 !important;   /* ถ้าอยากเทาเข้มก็เปลี่ยนเป็น #222 หรือสีเดิมได้ */
+  color: #000000 !important;
+}
+
 /* === Circle Packing box === */
 /* MODIFIED: Removed the restrictive media query now that Bootstrap handles responsiveness */
 /* @media (max-width: 1100px) {
