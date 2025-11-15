@@ -1,7 +1,7 @@
 // data.js
 
 // ===============================
-// Constants (Unchanged)
+// Constants
 // ===============================
 const GRAPHQL_ENDPOINT = "https://politigraph.wevis.info/graphql";
 
@@ -13,17 +13,14 @@ const ORG_STAGING_KEY = "orgStaging_v1";
 
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
 
-
 // ===============================
 // Base Path Fix for GitHub Pages + Mobile
 // ===============================
-const basePath =
-  window.location.origin +
-  window.location.pathname.replace(/\/[^\/]*$/, "/");
-
+// กำหนดชัดเจนสำหรับ GitHub Pages ที่โฟลเดอร์ politicalDashboard
+const basePath = window.location.origin + '/politicalDashboard/';
 
 // ===============================
-// GraphQL Queries (Unchanged)
+// GraphQL Queries
 // ===============================
 const QUERY_VOTE_EVENTS = `
   query VoteEvents {
@@ -57,7 +54,7 @@ const QUERY_ORGANIZATIONS = `
 `;
 
 // ===============================
-// Utility Functions (Unchanged)
+// Utility Functions
 // ===============================
 const isAbsent = (option) => {
   if (!option) return false;
@@ -138,6 +135,17 @@ async function fetchWithTimeout(resource, options = {}, timeout = 30000) {
   }
 }
 
+async function fetchGraphQL(query) {
+  // ฟังก์ชันนี้เรียก GraphQL โดยไม่จำกัด timeout
+  const res = await fetch(GRAPHQL_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  const json = await res.json();
+  return json.data || {};
+}
+
 async function fetchGraphQLWithTimeout(query, timeout = 30000) {
   try {
     const res = await fetchWithTimeout(GRAPHQL_ENDPOINT, {
@@ -167,7 +175,8 @@ function transformVoteEvents(rawEvents, cleanedPartyMap = {}) {
       ? ev.votes.map((v) => {
           const voteId = v.id;
           const original_party = v.voter_party ?? "อื่นๆ";
-          const cleaned_party = cleanedPartyMap[voteId] || original_party;
+          // เปลี่ยนตรงนี้ ให้ map ด้วยชื่อพรรคเดิม ไม่ใช่ id
+          const cleaned_party = cleanedPartyMap[original_party] || original_party;
 
           return {
             id: voteId,
@@ -218,7 +227,6 @@ function transformVoteEvents(rawEvents, cleanedPartyMap = {}) {
       month,
       title: ev.title ?? "Untitled",
       description: ev.description ?? "No description",
-      result: ev.result ?? null,
       agree_count: agree,
       disagree_count: disagree,
       abstain_count: abstain,
@@ -293,7 +301,7 @@ export async function forceRefreshVoteData(onStatusUpdate) {
   if (!voteEvents.length) {
     console.warn("❌ GraphQL returned no data, using file staging fallback.");
     onStatusUpdate?.("Refresh failed, loading from server staging file...");
-    const fileStaging = await fetchFileStaging('/data_cache/vote_data_cache.json');
+    const fileStaging = await fetchFileStaging('data_cache/vote_data_cache.json');
     return fileStaging;
   }
   
@@ -307,8 +315,6 @@ export async function forceRefreshVoteData(onStatusUpdate) {
 
   return records;
 }
-
-
 
 // ===============================
 // Hierarchy Builder for Absence (Unchanged)
@@ -356,7 +362,7 @@ export function buildAbsenceHierarchy(records) {
 }
 
 // ===============================
-// Public: Organizations with Cache (Unchanged)
+// Public: Organizations with Cache
 // ===============================
 export async function fetchOrganizations() {
   // 1️⃣ Try cache first (with TTL)
@@ -374,8 +380,8 @@ export async function fetchOrganizations() {
   if (!organizations.length) {
     console.warn("⚠️ Using staging organizations fallback...");
     
-    // Check server file staging first (assuming the Node.js pipeline runs for orgs too)
-    const fileStaging = await fetchFileStaging('/data_cache/organizations_cache.json');
+    // Check server file staging first
+    const fileStaging = await fetchFileStaging('data_cache/organizations_cache.json');
     if (fileStaging) {
         console.log("✅ Loaded organizations from server file staging.");
         return fileStaging;
