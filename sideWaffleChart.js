@@ -139,14 +139,19 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
       const g = svg.append("g").attr("transform", `translate(0.5, 0.5)`);
 
       g.selectAll("rect.cell")
-        .data(cells)
-        .join("rect")
-        .attr("x", (_, i) => (i % cols) * (cellSize + gap))
-        .attr("y", (_, i) => Math.floor(i / cols) * (cellSize + gap))
-        .attr("width", cellSize)
-        .attr("height", cellSize)
-        .attr("rx", 1.5)
-        .attr("fill", d => colorByParty[d] || "#bbb");
+  .data(cells)
+  .join("rect")
+  .attr("x", (_, i) => (i % cols) * (cellSize + gap))
+  .attr("y", (_, i) => Math.floor(i / cols) * (cellSize + gap))
+  .attr("width", cellSize)
+  .attr("height", cellSize)
+  .attr("rx", 1.5)
+  .attr("fill", d => colorByParty[d] || "#bbb")
+  .style("opacity", d => {
+    if (!selectedParty) return 1;      // ไม่มี filter → เข้มหมด
+    return d === selectedParty ? 1 : 0.25;   // พรรคอื่นจางลง
+  });
+
 
       // ⭐⭐⭐ FIXED LEGEND — Percent matches Pie Chart ⭐⭐⭐
       legendContainer
@@ -220,13 +225,18 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
         .text(d => d[0]);
 
       g.selectAll("rect.bar")
-        .data(partiesToShow)
-        .join("rect")
-        .attr("x", 0)
-        .attr("y", (_, i) => i * (barHeight + barGap))
-        .attr("width", d => x(d[1]))
-        .attr("height", barHeight)
-        .attr("fill", d => colorByParty[d[0]] || "#bbb");
+  .data(partiesToShow)
+  .join("rect")
+  .attr("x", 0)
+  .attr("y", (_, i) => i * (barHeight + barGap))
+  .attr("width", d => x(d[1]))
+  .attr("height", barHeight)
+  .attr("fill", d => colorByParty[d[0]] || "#bbb")
+  .style("opacity", d => {
+    if (!selectedParty) return 1;
+    return d[0] === selectedParty ? 1 : 0.25;
+  });
+
 
       g.selectAll("text.value")
         .data(partiesToShow)
