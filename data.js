@@ -276,7 +276,7 @@ export async function fetchVoteData(onStatusUpdate) {
 
     if (fileStaging) {
       console.log("✅ Loaded vote data from server file staging.");
-      onStatusUpdate?.("Loaded data from server staging file");
+      onStatusUpdate?.("Loading data from server staging file...");
       writeStorage(CACHE_KEY, fileStaging, true);
       return fileStaging;
     }

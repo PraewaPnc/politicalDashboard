@@ -6,6 +6,7 @@ export function createWaffleChart(containerSelector, records, eventBus) {
   container.selectAll("*").remove();
 
   const currentYear = records.length > 0 ? records[0].year : "Data";
+
   // ------- NEW: Header + Sub-header -------
   const head = container.append("div")
     .attr("class", "waffle-chart-head");
@@ -125,6 +126,9 @@ export function createWaffleChart(containerSelector, records, eventBus) {
 
   const g = svg.append("g").attr("transform", "translate(0,12)");
 
+  // ตัวแปรเก็บสถานะ tooltip ค้าง
+  let tooltipPinned = false;
+
   // --- สร้างสี่เหลี่ยมแต่ละเดือน ---
   monthNames.forEach((month, i) => {
     const monthIndex = i + 1;
@@ -180,18 +184,52 @@ export function createWaffleChart(containerSelector, records, eventBus) {
           record: d,
         });
 
+        // ปักหมุด tooltip ไว้หลัง click
+        tooltipPinned = true;
+        bus.dispatch("tooltip:show", { event, record: d });
+
         event.stopPropagation();
       })
-      .on("mouseover", (event, d) =>
-        bus.dispatch("tooltip:show", { event, record: d })
-      )
-      .on("mousemove", (event) => bus.dispatch("tooltip:move", { event }))
-      .on("mouseout", () => bus.dispatch("tooltip:hide"));
+      .on("touchstart", function (event, d) {
+        event.preventDefault();
+        selectedRecordId = getRecordId(d);
+        container.selectAll(".waffle-square")
+          .classed("selected", false)
+          .attr("opacity", 0.35);
+        d3.select(this).classed("selected", true).attr("opacity", 1.0);
+
+        bus.dispatch("waffle:selected", d);
+        const key = getCircleKey(d);
+        bus.dispatch("waffle:select", {
+          billId: key,
+          title: d?.title ?? d?.Bill?.title,
+          record: d,
+        });
+
+        tooltipPinned = true;
+        bus.dispatch("tooltip:show", { event, record: d });
+        event.stopPropagation();
+      })
+      .on("mouseover", (event, d) => {
+        if (!tooltipPinned) {
+          bus.dispatch("tooltip:show", { event, record: d });
+        }
+      })
+      .on("mousemove", (event) => {
+        if (!tooltipPinned) {
+          bus.dispatch("tooltip:move", { event });
+        }
+      })
+      .on("mouseout", () => {
+        if (!tooltipPinned) {
+          bus.dispatch("tooltip:hide");
+        }
+      });
 
     squares.attr("title", null);
   });
 
-  // คลิกพื้นที่ว่างเพื่อล้าง selection
+  // คลิกพื้นที่ว่างเพื่อล้าง selection และ tooltip
   svg.on("click", (evt) => {
     if (evt.target === svg.node()) {
       selectedRecordId = null;
@@ -199,6 +237,10 @@ export function createWaffleChart(containerSelector, records, eventBus) {
         .classed("selected", false)
         .attr("opacity", 1.0);
       bus.dispatch("waffle:clear");
+
+      // ยกเลิกปักหมุด tooltip และซ่อน tooltip
+      tooltipPinned = false;
+      bus.dispatch("tooltip:hide");
     }
   });
 
