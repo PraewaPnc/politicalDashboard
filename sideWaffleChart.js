@@ -1,4 +1,5 @@
-export function createSideWaffleChart(containerSelector, eventBus, colorByParty, latestRecord, totalMPs = 500) {
+// sidewafflechart.js
+export function createSideWaffleChart(containerSelector, eventBus, colorByParty, initialRecord, totalMPs = 500) {
   const container = d3.select(containerSelector);
   container.selectAll("*").remove();
 
@@ -61,10 +62,10 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
     .style("padding-top", "10px");
 
   // States
-  let lastRecord = latestRecord || null;
+  let lastRecord = initialRecord || null;
   let lastCategory = lastRecord ? "agree" : null;
   let selectedParty = null;
-  let shape = "square"; // square | person | bar
+  let shape = "square"; // square | bar
 
   function setShape(newShape) {
     if (newShape === "circle") {
@@ -73,6 +74,12 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
       shape = newShape;
     }
     render();
+  }
+  
+  // NEW: เมธอดสำหรับอัปเดตข้อมูลภายนอก
+  function updateData(record) {
+    lastRecord = record;
+    render(); 
   }
 
   function render() {
@@ -160,7 +167,7 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
           return (
             `<div class="text-body" style="font-weight:600; margin-bottom:6px;">
               ${lastCategory} — total ${total} 
-              <i style="font-size:11px;"> 1ช่อง ≈ ${factor} โหวต</i>
+              <i style="font-size:11px;"> **1ช่อง ≈ ${factor} โหวต</i>
             </div>` +
             partiesToShow
               .map(([party, count]) => {
@@ -247,52 +254,12 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
         .attr("y", (_, i) => i * (barHeight + barGap) + barHeight / 1.3)
         .style("font-size", "11px")
         .text(d => d[1]);
-
-      // ⭐⭐⭐ LEGEND for BAR MODE ถูกลบออกไปแล้ว ⭐⭐⭐
-      /*
-      legendContainer
-        .append("div")
-        .attr("class", "side-legend text-body")
-        .html(() => {
-          return (
-            `<div class="text-body" style="font-weight:600; margin-bottom:6px;">
-              ${lastCategory} — total ${total}
-            </div>` +
-            partiesToShow
-              .map(([party, count]) => {
-                const color = colorByParty[party] || "#bbb";
-                const isDim = selectedParty && party !== selectedParty;
-                const opacity = isDim ? 0.25 : 1;
-
-                return `
-                  <div style="
-                    display:flex; 
-                    justify-content:space-between; 
-                    align-items:center; 
-                    margin:3px 0;
-                    opacity:${opacity};
-                  ">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                      <span style="width:12px; height:12px; background:${color}; display:inline-block;"></span>
-                      <span style="font-size:13px;">${party}</span>
-                    </div>
-                    <div style="font-size:13px;">
-                      ${count}
-                    </div>
-                  </div>
-                `;
-              })
-              .join("")
-          );
-        });
-      */
     }
   }
 
   // Event listeners
   eventBus.on("waffle:selected", rec => {
-    lastRecord = rec;
-    render();
+    // ลบการอัปเดต lastRecord ที่นี่ เพราะ updateData ใน app.js จะจัดการ
   });
 
   eventBus.on("pie:categorySelected", cat => {
@@ -307,5 +274,6 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
 
   if (lastRecord) render();
 
-  return { setShape, render };
+  // เพิ่ม updateData ใน return
+  return { setShape, render, updateData };
 }

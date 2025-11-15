@@ -1,5 +1,3 @@
-// app.js
-
 import { fetchVoteData, forceRefreshVoteData, getPartyColors } from "./data.js";
 import { createWaffleChart } from "./waffleChart.js";
 import { createPieChart } from "./pieChart.js";
@@ -13,9 +11,9 @@ let currentYear = null;
 let currentParty = null;
 let pieChartInstance = null;
 let sideWaffleChartInstance = null;
-let circleAPI = null; // <-- เพิ่มบรรทัดนี้ ใช้เก็บอินสแตนซ์ circlePacking
+let circleAPI = null; // เก็บอินสแตนซ์ circlePacking
 
-/* ---------------- EventBus ---------------- */
+/* ---------------- EventBus (ระบบจัดการ Event ภายในแอป) ---------------- */
 class EventBus {
   constructor() { this.handlers = {}; }
   on(event, fn) { (this.handlers[event] ||= []).push(fn); }
@@ -23,11 +21,9 @@ class EventBus {
 }
 const bus = new EventBus();
 
-/* ---------------- INIT ---------------- */
+/* ---------------- INIT (เริ่มต้นแอปพลิเคชัน) ---------------- */
 async function init() {
-  // NEW: Theme initialization must run early to set the theme before charts render
   setupThemeToggle(); 
-  
   await loadData();
   setupFilters();
   setupRefreshButton();
@@ -36,21 +32,16 @@ async function init() {
   createDetailsPopup("#popupContainer", bus);
 }
 
-/* ---------------- THEME TOGGLE (NEW FUNCTION) ---------------- */
+/* ---------------- THEME TOGGLE (จัดการ Dark/Light Mode) ---------------- */
 function setupThemeToggle() {
   const htmlElement = document.documentElement;
   const switchElement = document.getElementById('darkModeSwitch');
   const labelElement = document.getElementById('mode-label');
   const localStorageKey = 'themePreference';
 
-  // Function to determine the theme (Priority: Saved > System > Default)
   function getPreferredTheme() {
-    // 1. Check for saved preference
     const savedTheme = localStorage.getItem(localStorageKey);
-    if (savedTheme) {
-      return savedTheme;
-    }
-    // 2. Check system preference
+    if (savedTheme) return savedTheme;
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     return prefersDark ? 'dark' : 'light';
   }
@@ -59,38 +50,37 @@ function setupThemeToggle() {
     htmlElement.setAttribute('data-bs-theme', theme);
     switchElement.checked = theme === 'dark';
     labelElement.textContent = theme === 'dark' ? 'Dark Mode' : 'Light Mode';
-    // You might want to dispatch an event here if other components need to know the theme changed
-    // bus.dispatch('theme:changed', theme); 
   }
 
-  // Set initial theme
   applyTheme(getPreferredTheme());
 
-  // --- Event Listener for Toggle ---
   switchElement.addEventListener('change', function () {
     const newTheme = this.checked ? 'dark' : 'light';
-    
-    // Apply and save the new theme
     applyTheme(newTheme);
     localStorage.setItem(localStorageKey, newTheme);
   });
   
-  // --- Listen for System Theme Changes ---
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-    // Only auto-update if the user hasn't explicitly set a preference
     if (!localStorage.getItem(localStorageKey)) {
-        applyTheme(e.matches ? 'dark' : 'light');
+      applyTheme(e.matches ? 'dark' : 'light');
     }
   });
 }
 
-/* ---------------- LOAD DATA ---------------- */
+/* ---------------- LOAD DATA (โหลดข้อมูลการโหวต) ---------------- */
 async function loadData(force = false) {
   const loader = document.getElementById("status");
   if (loader) loader.textContent = force ? "Refreshing data..." : "Loading data...";
 
+  function updateStatus(msg) {
+    if (loader) loader.textContent = msg;
+  }
+
   try {
-    allRecords = force ? await forceRefreshVoteData() : await fetchVoteData();
+    allRecords = force
+      ? await forceRefreshVoteData(updateStatus)
+      : await fetchVoteData(updateStatus);
+    
     PARTY_COLORS = await getPartyColors();
 
     if (!allRecords?.length) {
@@ -107,9 +97,8 @@ async function loadData(force = false) {
   }
 }
 
-/* ---------------- FILTERS ---------------- */
+/* ---------------- FILTERS (การตั้งค่าตัวกรอง ปี/พรรค) ---------------- */
 function setupFilters() {
-  // YEAR DROPDOWN CLICK HANDLER
   d3.select("#yearDropdownMenu").on("click", (event) => {
     const item = event.target.closest("a[data-value]");
     if (!item) return;
@@ -123,7 +112,6 @@ function setupFilters() {
     bus.dispatch("year:filterChanged", currentYear);
   });
 
-  // PARTY DROPDOWN CLICK HANDLER
   d3.select("#partyDropdownMenu").on("click", (event) => {
     const item = event.target.closest("a[data-value]");
     if (!item) return;
@@ -141,7 +129,7 @@ function setupFilters() {
 /* ---------------- POPULATE YEAR DROPDOWN ---------------- */
 function populateYearFilter() {
   const menu = d3.select("#yearDropdownMenu");
-  menu.selectAll("li.dynamic").remove(); // clear old dynamic items
+  menu.selectAll("li.dynamic").remove();
 
   const years = [...new Set(allRecords.map(d => d.year))]
     .filter(Boolean)
@@ -154,7 +142,6 @@ function populateYearFilter() {
     return;
   }
 
-  // Append dynamic year options
   years.forEach(y => {
     menu.append("li")
       .attr("class", "dynamic")
@@ -165,7 +152,6 @@ function populateYearFilter() {
       .text(y);
   });
 
-  // ✅ Auto-select the latest year
   currentYear = years.at(-1);
   d3.select("#yearFilter").text(currentYear);
 }
@@ -173,7 +159,7 @@ function populateYearFilter() {
 /* ---------------- POPULATE PARTY DROPDOWN ---------------- */
 function populatePartyFilter() {
   const menu = d3.select("#partyDropdownMenu");
-  menu.selectAll("li.dynamic").remove(); // clear old items
+  menu.selectAll("li.dynamic").remove();
 
   const parties = [...new Set(allRecords.flatMap(r => (r.votes || []).map(v => v.voter_party)))]
     .filter(Boolean)
@@ -189,10 +175,8 @@ function populatePartyFilter() {
       .text(p);
   });
 
-  // ✅ Default display = ทุกพรรค (All)
   d3.select("#partyFilter").text("ทุกพรรค");
 }
-
 
 /* ---------------- REFRESH BUTTON ---------------- */
 function setupRefreshButton() {
@@ -227,12 +211,11 @@ function setupTooltipAndTreemap() {
     tooltip.classed("hidden", false);
     tooltip.select("#tooltip-header").text(new Date(record.dateStr).toLocaleDateString());
     tooltip.select("#tooltip-sub").text(record.title);
-    // ✅ NEW: แสดง % แบบแยกพรรคเมื่อเลือก filter
+
     const partyKey = currentParty?.trim().toLowerCase() || "all";
     let presentInfo = "";
 
     if (!currentParty || currentParty === "all") {
-      // แสดงรวม
       presentInfo = `Present: ${record.presentCount}/${record.totalVoters} (${record.presentPercent}%)`;
     } else {
       const partyBreakdown = record.partyBreakdown || {};
@@ -265,7 +248,6 @@ function setupTooltipAndTreemap() {
   function moveTooltip(event) {
     if (!event) return;
     const offset = 12;
-    // ปรับตำแหน่งให้เหมาะสม ไม่ให้ล้นขอบจอ
     tooltip.style("left", `${Math.min(window.innerWidth - tooltip.node().offsetWidth - 5, event.clientX + offset)}px`)
       .style("top", `${Math.min(window.innerHeight - tooltip.node().offsetHeight - 5, event.clientY + offset)}px`);
   }
@@ -280,9 +262,10 @@ function renderTreemap(record, tooltip) {
   const partyBreakdown = record.partyBreakdown || {};
   const entries = Object.entries(partyBreakdown).sort((a, b) => b[1] - a[1]);
   const top = entries.slice(0, 9);
-  const other = entries.slice(9).reduce((sum, [, v]) => sum + v, 0);
+  const rest = entries.slice(9);
+  const otherSum = d3.sum(rest, d => d[1]);
   const nodes = top.map(([k, v]) => ({ party: k, value: v }));
-  if (other > 0) nodes.push({ party: "Other", value: other });
+  if (otherSum > 0) nodes.push({ party: "Other", value: otherSum });
 
   if (!nodes.length) {
     svg.append("text").attr("x", 180).attr("y", 120)
@@ -290,30 +273,22 @@ function renderTreemap(record, tooltip) {
     return;
   }
 
-  // ✅ [แก้ไข] อ่านขนาดจริงของ tooltip และกำหนดความสูง
   const tooltipNode = tooltip.node();
-  // clientWidth คือความกว้างภายใน (ไม่รวม border, margin, scrollbar)
-  // -20 สำหรับ padding ซ้าย-ขวา 10px (รวมเป็น 20px)
-  const availableWidth = tooltipNode.clientWidth - 20; 
-  
-  // กำหนดความสูงคงที่สำหรับ Treemap (ต้องสัมพันธ์กับ .treemap-container ใน CSS)
-  const TREEMAP_HEIGHT = 150; 
-  
-  // ตั้งค่า SVG ให้ขนาดตามที่คำนวณ
+  const availableWidth = tooltipNode.clientWidth - 20;
+  const TREEMAP_HEIGHT = 150;
+
   svg.attr("width", availableWidth).attr("height", TREEMAP_HEIGHT);
 
   const w = availableWidth;
   const h = TREEMAP_HEIGHT;
 
   const root = d3.hierarchy({ children: nodes }).sum(d => d.value);
-  // ใช้ paddingInner และ paddingOuter เพื่อให้ Treemap สวยงาม
   d3.treemap().size([w, h]).paddingInner(1).paddingOuter(2)(root); 
 
   const color = d3.scaleOrdinal()
     .domain(nodes.map(n => n.party))
     .range(nodes.map(n => PARTY_COLORS[n.party] || PARTY_COLORS["Other"]));
 
-  // ✅ [แก้ไข] ลบ gContainer และการปรับ scale ออก
   const g = svg.append("g").attr("class", "treemap-group")
     .selectAll("g.node")
     .data(root.leaves())
@@ -340,12 +315,10 @@ function renderTreemap(record, tooltip) {
     .text(d => `${d.data.party}: ${d.data.value}`)
     .each(function (d) {
       const w = d.x1 - d.x0, h = d.y1 - d.y0;
-      // ปรับเงื่อนไขการแสดงผลเพื่อให้ข้อความไม่เกินขอบ
       if (w < 40 || h < 18 || d3.select(this).node().getComputedTextLength() > w - 10) 
         d3.select(this).style("display", "none");
     });
 
-  // ✅ legend ด้านล่าง
   const legend = d3.select("#tooltip-legend").html("");
   nodes.forEach(n => {
     legend.append("div").attr("class", "legend-row")
@@ -360,111 +333,107 @@ function renderTreemap(record, tooltip) {
   });
 }
 
-
-/* ---------------- SHAPE TOGGLE ---------------- */
+/* ---------------- SHAPE TOGGLE (สลับ Waffle/Bar) ---------------- */
 function setupShapeToggle() {
   const squareBtn = document.getElementById("shapeSquare");
   const circleBtn = document.getElementById("shapeCircle");
 
   if (!squareBtn || !circleBtn) return;
 
-  // Default
   if (!squareBtn.classList.contains("active") && !circleBtn.classList.contains("active")) {
     squareBtn.classList.add("active");
   }
 
   const applyShape = (shape) => {
-    // 1. กำหนด Active State บนปุ่ม
     if (shape === "square") {
       squareBtn.classList.add("active");
       circleBtn.classList.remove("active");
     } else {
-      // Note: 'circle' button triggers 'bar' shape internally
       circleBtn.classList.add("active");
       squareBtn.classList.remove("active");
     }
     
-    // 2. เรียก API ของ SideWaffleChart เพื่อเปลี่ยนรูปร่างและเรนเดอร์เฉพาะตัวมันเอง
-    // นี่คือการแก้ไขหลัก: เรียก setShape และ render() ของ sideWaffleChart โดยตรง
     sideWaffleChartInstance?.setShape?.(shape);
-    sideWaffleChartInstance?.render?.(); 
-    
-    // ไม่เรียก renderAll() อีกต่อไป
+    sideWaffleChartInstance?.render?.();
   };
 
-  squareBtn.addEventListener("click", () => {
-    applyShape("square");
-  });
-
-  circleBtn.addEventListener("click", () => {
-    // โหมด 'circle' ในโค้ดของคุณถูกตั้งค่าให้เรียกใช้โหมด 'bar' ใน sideWaffleChart.js
-    applyShape("bar"); 
-  });
+  squareBtn.addEventListener("click", () => applyShape("square"));
+  circleBtn.addEventListener("click", () => applyShape("bar"));
 }
 
-/* ---------------- RENDER ALL ---------------- */
+/* ---------------- RENDER ALL (วาดกราฟทั้งหมด) ---------------- */
 function renderAll() {
   const filtered = allRecords.filter(r => r.year === currentYear);
   if (!filtered.length) return console.warn("No data for selected year:", currentYear);
   
-  // 1. CALL WAFFLE CHART (FIXED: Removed duplicate call)
   const waffleResult = createWaffleChart("#waffleChart", filtered, bus);
-  const latestRecord = waffleResult.latestRecord;
+  const latestRecord = waffleResult.latestRecord; 
   
-  // 2. CALL PIE CHART 
   if (!pieChartInstance) {
     pieChartInstance = createPieChart("#pieChart", bus, latestRecord);
   } else {
+    // Pie Chart ควรถูกอัปเดตด้วยมติล่าสุดเมื่อมีการ Refresh/เปลี่ยนปี
     pieChartInstance.update(latestRecord);
   }
 
-  // 3. SIDE WAFFLE CHART
   if (!sideWaffleChartInstance) {
     sideWaffleChartInstance = createSideWaffleChart("#sideWaffleChart", bus, PARTY_COLORS, latestRecord);
 
-    // กำหนด shape เริ่มต้นตามสถานะปุ่ม เมื่อสร้างครั้งแรก
     const squareActive = document.getElementById("shapeSquare")?.classList.contains("active");
     sideWaffleChartInstance?.setShape?.(squareActive ? "square" : "bar");
+  } else {
+    // อัปเดต Side Waffle ด้วยข้อมูลมติล่าสุดเมื่อมีการ Refresh/เปลี่ยนปี
+    sideWaffleChartInstance.updateData(latestRecord); 
+    bus.dispatch("pie:categorySelected", "agree"); // กำหนด category เริ่มต้น
   }
   
-  // ⭐⭐⭐ การแก้ไข: เพิ่มการบังคับ Shape และ Category เมื่อเลือกมติใหม่ ⭐⭐⭐
-  
-  // ฟังก์ชันที่จะถูกเรียกเมื่อมีการคลิก Waffle
+  // --- Event handler สำหรับ waffle:selected ---
+  // Event handler นี้ยังคงต้องมีไว้เพื่อรองรับการคลิก Waffle Chart ในภายหลัง
   if (!bus.handlers["waffle:selected"]?.some(fn => fn.name === "handleWaffleSelect")) {
-      const handleWaffleSelect = (rec) => {
-          // 1. บังคับให้ Side Waffle Chart กลับไปเป็นโหมด Waffle (Square) เสมอ
-          sideWaffleChartInstance?.setShape?.("square"); 
-          
-          // 2. บังคับให้เปลี่ยน Category ไปที่ "agree" เสมอ
-          bus.dispatch("pie:categorySelected", "agree");
-          
-          // 3. ปรับ UI ของปุ่ม Shape Toggle ให้ตรงกับสถานะ "square" ด้วย
-          document.getElementById("shapeSquare")?.classList.add("active");
-          document.getElementById("shapeCircle")?.classList.remove("active");
-      };
-      
-      // ผูก Event Handler
-      bus.on("waffle:selected", handleWaffleSelect);
-  }
+    const handleWaffleSelect = (rec) => {
+      // rec คือ record ที่ถูกเลือก หรือ null ถ้า deselect
+      const dataToRender = rec; 
+      const isDeselect = !rec;
 
-  // 4) ZOOMABLE CIRCLE PACKING
-  console.log("CirclePacking records:", allRecords);
+      // ตรวจสอบว่ามีข้อมูลสำหรับแสดงหรือไม่ (ถ้า deselect, dataToRender จะเป็น null)
+      if (dataToRender) {
+        pieChartInstance?.update?.(dataToRender);
+        sideWaffleChartInstance?.updateData?.(dataToRender);
+
+        bus.dispatch("pie:categorySelected", "agree"); // เลือกหมวดหมู่เริ่มต้น
+
+        sideWaffleChartInstance?.setShape?.("square");
+        document.getElementById("shapeSquare")?.classList.add("active");
+        document.getElementById("shapeCircle")?.classList.remove("active");
+
+        bus.dispatch("tooltip:hide");
+
+        const key = dataToRender?.billId ?? dataToRender?.title;
+        circleAPI?.setActive?.(key);
+      } else {
+        // กรณี Deselect: 
+        // Waffle Chart (ใน waffleChart.js) ต้องจัดการให้กลับไปแสดงผลแบบเต็ม (ไม่จาง)
+        // ส่วนกราฟเสริม (Pie/SideWaffle) ยังคงแสดงข้อมูลล่าสุด
+        
+        bus.dispatch("tooltip:hide");
+        circleAPI?.setActive?.(null); 
+      }
+    };
+    bus.on("waffle:selected", handleWaffleSelect);
+  }
 
   if (!circleAPI) {
-    // สร้างครั้งแรก
     circleAPI = createCirclePacking("#circlePacking", allRecords, PARTY_COLORS, bus);
-
-    // ผูก event จาก waffle → circlePacking แค่ครั้งเดียว
-    bus.on("waffle:select", ({ billId, title }) => {
-      const key = billId ?? title;  // รองรับทั้ง billId และ title
-      circleAPI?.setActive?.(key);  // ใช้ API ที่มีจริงเพื่อไฮไลต์ (ไม่ error)
-    });
   } else {
-    // ครั้งต่อไปให้แค่อัปเดตข้อมูล (เมื่อปีเปลี่ยน)
     circleAPI.update(allRecords);
   }
+  
+  // *** บรรทัดนี้ถูกลบออกเพื่อป้องกันการ Select มติล่าสุดโดยอัตโนมัติ ***
+  // if (latestRecord) {
+  //   bus.dispatch("waffle:selected", latestRecord);
+  // }
 
-  // แจ้งปีให้ทุกคอมโพเนนต์ที่ฟังอยู่
+
   bus.dispatch("year:filterChanged", currentYear);
 }
 

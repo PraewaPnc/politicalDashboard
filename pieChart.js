@@ -1,5 +1,5 @@
 // pieChart.js
-export function createPieChart(containerSelector, eventBus, latestRecord) {
+export function createPieChart(containerSelector, eventBus, initialRecord) {
   const container = d3.select(containerSelector);
   container.selectAll("*").remove();
 
@@ -7,6 +7,7 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
   let W = 320;
   let H = 320;
   let R = 130;
+  let latestRecord = initialRecord; // <--- เก็บข้อมูลเริ่มต้นไว้
 
   // Function to get the current container size
   function getContainerSize() {
@@ -122,6 +123,11 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
 
   // --- Update Function ---
   function update(record) {
+    // 1. อัปเดต latestRecord ถ้า record ที่เข้ามามีค่า (ไม่ใช่ null)
+    if (record) {
+      latestRecord = record; 
+    }
+    
     // Reset UI
     titleContainer.text("");
     titleContainer.datum(null);
@@ -130,23 +136,22 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
     legendContainer.selectAll("*").remove();
     currentData = null;
 
-    // --- Case 1: No record selected ---
-    if (!record) {
-      if (latestRecord) {
-        record = latestRecord;
-      } else {
-        chartWrapper
+    // --- Case 1: No record selected, Use latestRecord ---
+    if (!record && latestRecord) {
+      record = latestRecord; // ถ้า record เป็น null ให้ใช้ latestRecord
+    } else if (!record && !latestRecord) {
+      // กรณีไม่มีข้อมูลเลย
+      chartWrapper
           .append("div")
           .attr("class", "pie-header-prompt")
           .style("font-weight", "700")
           .style("text-align", "center")
           .style("padding", "100px 0")
           .text("Select a title to view vote %");
-        return;
-      }
+      return;
     }
 
-        // --- Case 2: Record selected (or latestRecord is now set) ---
+    // --- Case 2: Record selected (or latestRecord is now set) ---
     titleContainer
       .html(`
         <div class="pie-chart-title"
@@ -226,14 +231,6 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
       .style("opacity", 1);
   }
 
-  // --- Click handler for the title ---
-  // titleContainer.on("click", function() {
-  //   const record = d3.select(this).datum(); 
-  //   if (record) {
-  //     eventBus.dispatch("details:show", record);
-  //   }
-  // });
-
   // --- Resize Observer (for D3 responsiveness) ---
   let ro;
   function applyResize() {
@@ -247,13 +244,10 @@ export function createPieChart(containerSelector, eventBus, latestRecord) {
     ro.observe(selfTarget); 
   }
   
-  // Clean up observer on destruction (not defined here, but good practice)
-  
   // --- Event Listeners ---
-  eventBus.on("waffle:selected", d => update(d));
+  eventBus.on("waffle:selected", d => update(d)); 
   eventBus.on("year:filterChanged", () => update(null));
   
-  // ⬇️⬇️ ฟังสัญญาณจาก circle/waffle เพื่ออัปเดตพาย
   eventBus.on?.("waffle:select", ({ record }) => { if (record) update(record); });
   eventBus.on?.("pie:select",    ({ record }) => { if (record) update(record); });
 
