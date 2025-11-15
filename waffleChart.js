@@ -7,11 +7,10 @@ export function createWaffleChart(containerSelector, records, eventBus) {
 
   const currentYear = records.length > 0 ? records[0].year : "Data";
 
-  // ------- NEW: Header + Sub-header -------
+  // ... (โค้ดส่วนหัวและโหลดข้อมูล/สี/สถิติ - เหมือนเดิม)
   const head = container.append("div")
     .attr("class", "waffle-chart-head");
  
-  // Header
   head.append("div")
     .attr("class", "waffle-chart-title")
     .style("text-align", "left")
@@ -20,7 +19,6 @@ export function createWaffleChart(containerSelector, records, eventBus) {
     .style("margin-bottom", "4px")
     .text("เดือนนี้ใครขยัน เดือนไหนใครหายตัว");
  
-  // Sub-header (was the old title)
   head.append("div")
     .attr("class", "waffle-chart-subtitle text-body")
     .style("text-align", "left")
@@ -44,7 +42,6 @@ export function createWaffleChart(containerSelector, records, eventBus) {
 
   let selectedRecordId = latestRecord ? getRecordId(latestRecord) : null;
 
-  // --- สีและสถิติ ---
   const allPercents = records.map((d) => d.presentPercent || 0);
   const stats = {
     min: d3.min(allPercents),
@@ -89,15 +86,12 @@ export function createWaffleChart(containerSelector, records, eventBus) {
     if (!recordsByMonth.has(m)) recordsByMonth.set(m, []);
   }
 
-  // --- ✅ คำนวณขนาดกราฟแบบ Dynamic ---
+  // --- คำนวณขนาดกราฟแบบ Dynamic ---
   const countsPerMonth = Array.from({ length: 12 }, (_, i) =>
     (recordsByMonth.get(i + 1) || []).length
   );
 
-  // ใช้จำนวนสี่เหลี่ยมมากที่สุดของทุกเดือนเพื่อคำนวณความกว้าง
   const maxSquaresPerRow = Math.max(1, ...countsPerMonth);
-
-  // ป้องกันกรณีข้อมูลน้อย ให้มีขั้นต่ำ
   const FIXED_MIN_SQUARES = 20;
   const effectiveSquaresPerRow = Math.max(maxSquaresPerRow, FIXED_MIN_SQUARES);
 
@@ -107,10 +101,8 @@ export function createWaffleChart(containerSelector, records, eventBus) {
   const legendHeight = 40;
   const rows = 12;
 
-  // ป้องกัน legend ชน
   const MIN_CHART_WIDTH = 400;
 
-  // คำนวณขนาดภายในตามข้อมูลจริง
   const DYNAMIC_DRAW_WIDTH =
     labelWidth + effectiveSquaresPerRow * (cellSize + gap) + 40;
   const INTERNAL_WIDTH = Math.max(DYNAMIC_DRAW_WIDTH, MIN_CHART_WIDTH);
@@ -126,8 +118,16 @@ export function createWaffleChart(containerSelector, records, eventBus) {
 
   const g = svg.append("g").attr("transform", "translate(0,12)");
 
-  // ตัวแปรเก็บสถานะ tooltip ค้าง
-  let tooltipPinned = false;
+  // ✅ ตัวแปรสำหรับจัดการ Touch Hold
+  let touchTimer = null;
+  const TOUCH_HOLD_DURATION = 500; // 500ms สำหรับการแตะค้าง
+
+  // ✅ ฟังก์ชันตรวจจับ Mobile/Touch Screen
+  const isMobile = () => {
+    const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    return hasTouch; 
+  };
+
 
   // --- สร้างสี่เหลี่ยมแต่ละเดือน ---
   monthNames.forEach((month, i) => {
@@ -169,7 +169,10 @@ export function createWaffleChart(containerSelector, records, eventBus) {
       .attr("fill", (d) =>
         colorScale(Math.max(0, Math.min(100, d.presentPercent || 0)))
       )
+      
+      // ✅ 1. Event สำหรับ Selection (Desktop: click, Mobile: tap/click)
       .on("click", function (event, d) {
+        // Selection Logic: ทำงานเมื่อคลิก (ทั้ง Desktop และ Mobile Tap)
         selectedRecordId = getRecordId(d);
         container.selectAll(".waffle-square")
           .classed("selected", false)
@@ -177,74 +180,91 @@ export function createWaffleChart(containerSelector, records, eventBus) {
         d3.select(this).classed("selected", true).attr("opacity", 1.0);
 
         bus.dispatch("waffle:selected", d);
-        const key = getCircleKey(d);
         bus.dispatch("waffle:select", {
-          billId: key,
+          billId: getCircleKey(d),
           title: d?.title ?? d?.Bill?.title,
           record: d,
         });
 
-        // ปักหมุด tooltip ไว้หลัง click
-        tooltipPinned = true;
-        bus.dispatch("tooltip:show", { event, record: d });
-
         event.stopPropagation();
       })
+      
+      // ✅ 2. Event สำหรับ Mobile: Touch Start (เริ่มแสดง Tooltip)
       .on("touchstart", function (event, d) {
-        event.preventDefault();
-        selectedRecordId = getRecordId(d);
-        container.selectAll(".waffle-square")
-          .classed("selected", false)
-          .attr("opacity", 0.35);
-        d3.select(this).classed("selected", true).attr("opacity", 1.0);
+        if (!isMobile()) return;
 
-        bus.dispatch("waffle:selected", d);
-        const key = getCircleKey(d);
-        bus.dispatch("waffle:select", {
-          billId: key,
-          title: d?.title ?? d?.Bill?.title,
-          record: d,
-        });
-
-        tooltipPinned = true;
-        bus.dispatch("tooltip:show", { event, record: d });
+        // Clear Timer เก่า (ถ้ามี)
+        clearTimeout(touchTimer); 
+        
+        // 💡 แสดง Tooltip ทันทีเมื่อ Touch (Touch Hold Behavior)
+        const pointer = d3.pointer(event, this);
+        // Dispatch event โดยสร้าง object ที่มี clientX/Y จำลองจาก d3.pointer
+        bus.dispatch("tooltip:show", { event: { clientX: pointer[0], clientY: pointer[1] }, record: d });
+        
+        // ตั้งเวลาซ่อน Tooltip ถ้า Touch ไม่ใช่ Long Press/Hold
+        // เราไม่จำเป็นต้องใช้ touchTimer เพื่อซ่อน เพราะ touchend/touchmove จะทำแทน
+        
         event.stopPropagation();
       })
-      .on("mouseover", (event, d) => {
-        if (!tooltipPinned) {
-          bus.dispatch("tooltip:show", { event, record: d });
-        }
+
+      // ✅ 3. Event สำหรับ Mobile: Touch End (ซ่อน Tooltip)
+      .on("touchend", function (event, d) {
+        if (!isMobile()) return;
+        
+        clearTimeout(touchTimer);
+        // ซ่อน Tooltip เมื่อยกนิ้วขึ้น
+        bus.dispatch("tooltip:hide");
+        
+        // event.preventDefault() ถูกลบออกเพื่อให้ click event ทำงาน
+        event.stopPropagation();
       })
-      .on("mousemove", (event) => {
-        if (!tooltipPinned) {
-          bus.dispatch("tooltip:move", { event });
-        }
-      })
-      .on("mouseout", () => {
-        if (!tooltipPinned) {
+      
+      // ✅ 4. Event สำหรับ Mobile: Touch Move (ซ่อน Tooltip ถ้ามีการเลื่อน)
+      .on("touchmove", function(event) {
+          if (!isMobile()) return;
+          // ถ้ามีการย้ายนิ้ว ให้ซ่อน Tooltip
+          clearTimeout(touchTimer);
           bus.dispatch("tooltip:hide");
-        }
+          event.stopPropagation();
+      })
+
+      // ✅ 5. Event สำหรับ Hover (Desktop Only)
+      .on("mouseover", (event, d) => {
+        if (isMobile()) return; // Mobile ใช้ touch events
+        bus.dispatch("tooltip:show", { event, record: d });
+      })
+      
+      // ✅ 6. Event สำหรับ Mousemove (Desktop Only)
+      .on("mousemove", (event) => {
+        if (isMobile()) return;
+        bus.dispatch("tooltip:move", { event });
+      })
+      
+      // ✅ 7. Event สำหรับ Mouseout (Desktop Only)
+      .on("mouseout", () => {
+        if (isMobile()) return;
+        bus.dispatch("tooltip:hide");
       });
 
     squares.attr("title", null);
   });
 
-  // คลิกพื้นที่ว่างเพื่อล้าง selection และ tooltip
+  // คลิกพื้นที่ว่างเพื่อล้าง selection
   svg.on("click", (evt) => {
-    if (evt.target === svg.node()) {
+    if (evt.target === svg.node()) { 
       selectedRecordId = null;
       container.selectAll(".waffle-square")
         .classed("selected", false)
         .attr("opacity", 1.0);
       bus.dispatch("waffle:clear");
 
-      // ยกเลิกปักหมุด tooltip และซ่อน tooltip
-      tooltipPinned = false;
+      // Tooltip: ซ่อน tooltip เสมอ
       bus.dispatch("tooltip:hide");
     }
   });
 
   // --- Legend ---
+  // ... (โค้ด Legend - เหมือนเดิม)
   const fixedLegendWidth = 280;
   const legendHeightBar = 14;
   const numColors = 5;
@@ -311,6 +331,8 @@ export function createWaffleChart(containerSelector, records, eventBus) {
 
     bus.dispatch("waffle:selected", target);
   });
+  
+  // ไม่มี tooltipPinned ให้รีเซ็ตแล้ว
 
   return { latestRecord };
 }

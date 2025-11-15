@@ -248,8 +248,12 @@ function setupTooltipAndTreemap() {
   function moveTooltip(event) {
     if (!event) return;
     const offset = 12;
-    tooltip.style("left", `${Math.min(window.innerWidth - tooltip.node().offsetWidth - 5, event.clientX + offset)}px`)
-      .style("top", `${Math.min(window.innerHeight - tooltip.node().offsetHeight - 5, event.clientY + offset)}px`);
+    // ใช้ clientX/Y จาก event ที่ส่งมา ไม่ว่าจะเป็น MouseEvent หรือ object จำลอง
+    const clientX = event.clientX;
+    const clientY = event.clientY;
+
+    tooltip.style("left", `${Math.min(window.innerWidth - tooltip.node().offsetWidth - 5, clientX + offset)}px`)
+      .style("top", `${Math.min(window.innerHeight - tooltip.node().offsetHeight - 5, clientY + offset)}px`);
   }
 
   bus.on("show:treemap", (record) => renderTreemap(record, tooltip));
@@ -388,14 +392,14 @@ function renderAll() {
   }
   
   // --- Event handler สำหรับ waffle:selected ---
-  // Event handler นี้ยังคงต้องมีไว้เพื่อรองรับการคลิก Waffle Chart ในภายหลัง
   if (!bus.handlers["waffle:selected"]?.some(fn => fn.name === "handleWaffleSelect")) {
     const handleWaffleSelect = (rec) => {
       // rec คือ record ที่ถูกเลือก หรือ null ถ้า deselect
       const dataToRender = rec; 
-      const isDeselect = !rec;
 
-      // ตรวจสอบว่ามีข้อมูลสำหรับแสดงหรือไม่ (ถ้า deselect, dataToRender จะเป็น null)
+      // ซ่อน tooltip เสมอเมื่อมีการ Select/Deselect
+      bus.dispatch("tooltip:hide"); 
+
       if (dataToRender) {
         pieChartInstance?.update?.(dataToRender);
         sideWaffleChartInstance?.updateData?.(dataToRender);
@@ -406,16 +410,10 @@ function renderAll() {
         document.getElementById("shapeSquare")?.classList.add("active");
         document.getElementById("shapeCircle")?.classList.remove("active");
 
-        bus.dispatch("tooltip:hide");
-
         const key = dataToRender?.billId ?? dataToRender?.title;
         circleAPI?.setActive?.(key);
       } else {
         // กรณี Deselect: 
-        // Waffle Chart (ใน waffleChart.js) ต้องจัดการให้กลับไปแสดงผลแบบเต็ม (ไม่จาง)
-        // ส่วนกราฟเสริม (Pie/SideWaffle) ยังคงแสดงข้อมูลล่าสุด
-        
-        bus.dispatch("tooltip:hide");
         circleAPI?.setActive?.(null); 
       }
     };
@@ -428,12 +426,6 @@ function renderAll() {
     circleAPI.update(allRecords);
   }
   
-  // *** บรรทัดนี้ถูกลบออกเพื่อป้องกันการ Select มติล่าสุดโดยอัตโนมัติ ***
-  // if (latestRecord) {
-  //   bus.dispatch("waffle:selected", latestRecord);
-  // }
-
-
   bus.dispatch("year:filterChanged", currentYear);
 }
 

@@ -110,18 +110,21 @@ export function createCirclePacking(containerSelector, allRecords, PARTY_COLORS,
   const mainTitleEl = titleDiv.append("div")
     .text("ร่างกฎหมายไหนรอด ร่างกฎหมายไหนร่วง")
     .style("text-align","left")
+    .style("margin-bottom", "4px")
     .style("font","600 20px/1.4 Sarabun");
 
   const subTitleEl = titleDiv.append("div")
     .text("สถานะของกฎหมายหรือร่างพระราชบัญญัติที่ได้มีการหารือลงความเห็น")
     .style("text-align","left")
+    .style("margin-bottom", "4px")
     .style("font","600 14px/1 Sarabun")
     .style("opacity","0.9");
 
   const selectedTitleEl = titleDiv.append("div")
     .text("")
-    .style("font","500 12px/1.3 Sarabun")
+    .style("font","500 12px/1.4 Sarabun")
     .style("opacity","0.85")
+    .style("margin-bottom", "4px")
     .style("cursor","pointer")
     .attr("class","cp-selected-title");
 

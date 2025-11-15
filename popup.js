@@ -30,20 +30,20 @@ export function createDetailsPopup(containerSelector, eventBus) {
   const body = modal.append("div").attr("class", "popup-body");
 
   const dateRow = body.append("div").attr("class", "popup-info-row");
-  dateRow.append("span").attr("class", "info-label").text("Start Date:");
+  dateRow.append("span").attr("class", "info-label").text("วันที่ลงมติ:");
   const dateValue = dateRow.append("span").attr("id", "popup-date").attr("class", "info-value");
 
   const resultRow = body.append("div").attr("class", "popup-info-row");
-  resultRow.append("span").attr("class", "info-label").text("Result:");
+  resultRow.append("span").attr("class", "info-label").text("สรุปผลการพิจารณา:");
   const resultValue = resultRow.append("span").attr("id", "popup-result").attr("class", "info-value result-status");
 
   // ✅ NEW: สัดส่วนการเข้าร่วม
   const presentRow = body.append("div").attr("class", "popup-info-row");
-  presentRow.append("span").attr("class", "info-label").text("Present:");
+  presentRow.append("span").attr("class", "info-label").text("จำนวนผู้เข้าร่วมประชุม:");
   const presentValue = presentRow.append("span").attr("id", "popup-present").attr("class", "info-value");
 
   // Description
-  body.append("h4").attr("class", "popup-description-title").text("Description");
+  body.append("h4").attr("class", "popup-description-title").text("รายละเอียด");
   const description = body.append("p").attr("id", "popup-description").attr("class", "popup-description-text");
 
   function showPopup(record) {
