@@ -13,6 +13,15 @@ const ORG_STAGING_KEY = "orgStaging_v1";
 
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24h
 
+
+// ===============================
+// Base Path Fix for GitHub Pages + Mobile
+// ===============================
+const basePath =
+  window.location.origin +
+  window.location.pathname.replace(/\/[^\/]*$/, "/");
+
+
 // ===============================
 // GraphQL Queries (Unchanged)
 // ===============================
@@ -66,7 +75,7 @@ const safeJSONParse = (str) => {
 
 async function fetchCleanedPartyMap() {
   try {
-    const res = await fetch('./cleaned_party_map.json');
+    const res = await fetch(`${basePath}cleaned_party_map.json`);
     if (!res.ok) throw new Error("Failed to load cleaned party map.");
     return await res.json();
   } catch (err) {
@@ -100,7 +109,9 @@ function writeStorage(key, data, includeTimestamp = false) {
 
 async function fetchFileStaging(filePath) {
   try {
-    const res = await fetch(filePath);
+    const clean = filePath.replace(/^\.\//, "");
+    const res = await fetch(`${basePath}${clean}`);
+
     if (!res.ok) throw new Error("Staging file not found or inaccessible.");
     const obj = await res.json();
     return obj.data; 
@@ -247,7 +258,8 @@ export async function fetchVoteData(onStatusUpdate) {
   if (!voteEvents.length) {
     console.warn("⚠️ GraphQL fetch failed or timed out. Loading from server file staging...");
     onStatusUpdate?.("Fetch failed, loading from server staging file...");
-    const fileStaging = await fetchFileStaging('./data_cache/vote_data_cache.json');
+    const fileStaging = await fetchFileStaging('data_cache/vote_data_cache.json');
+
     if (fileStaging) {
       console.log("✅ Loaded vote data from server file staging.");
       onStatusUpdate?.("Loaded data from server staging file");
@@ -281,7 +293,7 @@ export async function forceRefreshVoteData(onStatusUpdate) {
   if (!voteEvents.length) {
     console.warn("❌ GraphQL returned no data, using file staging fallback.");
     onStatusUpdate?.("Refresh failed, loading from server staging file...");
-    const fileStaging = await fetchFileStaging('./data_cache/vote_data_cache.json');
+    const fileStaging = await fetchFileStaging('/data_cache/vote_data_cache.json');
     return fileStaging;
   }
   
@@ -363,7 +375,7 @@ export async function fetchOrganizations() {
     console.warn("⚠️ Using staging organizations fallback...");
     
     // Check server file staging first (assuming the Node.js pipeline runs for orgs too)
-    const fileStaging = await fetchFileStaging('./data_cache/organizations_cache.json');
+    const fileStaging = await fetchFileStaging('/data_cache/organizations_cache.json');
     if (fileStaging) {
         console.log("✅ Loaded organizations from server file staging.");
         return fileStaging;
