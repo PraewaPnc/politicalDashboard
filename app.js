@@ -36,8 +36,6 @@ async function init() {
   createDetailsPopup("#popupContainer", bus);
 }
 
-// ... (loadData, setupFilters, populateYearFilter, populatePartyFilter, setupRefreshButton functions)
-
 /* ---------------- THEME TOGGLE (NEW FUNCTION) ---------------- */
 function setupThemeToggle() {
   const htmlElement = document.documentElement;
@@ -347,14 +345,6 @@ function renderTreemap(record, tooltip) {
         d3.select(this).style("display", "none");
     });
 
-  // ✅ [แก้ไข] ลบการปรับ scale อัตโนมัติ:
-  // const bbox = gContainer.node().getBBox();
-  // const scale = Math.min(w / bbox.width, h / bbox.height, 1);
-  // const xOffset = (w - bbox.width * scale) / 2 - bbox.x * scale;
-  // const yOffset = (h - bbox.height * scale) / 2 - bbox.y * scale;
-  // gContainer.attr("transform", `translate(${xOffset},${yOffset}) scale(${scale})`);
-
-
   // ✅ legend ด้านล่าง
   const legend = d3.select("#tooltip-legend").html("");
   nodes.forEach(n => {
@@ -383,16 +373,32 @@ function setupShapeToggle() {
     squareBtn.classList.add("active");
   }
 
+  const applyShape = (shape) => {
+    // 1. กำหนด Active State บนปุ่ม
+    if (shape === "square") {
+      squareBtn.classList.add("active");
+      circleBtn.classList.remove("active");
+    } else {
+      // Note: 'circle' button triggers 'bar' shape internally
+      circleBtn.classList.add("active");
+      squareBtn.classList.remove("active");
+    }
+    
+    // 2. เรียก API ของ SideWaffleChart เพื่อเปลี่ยนรูปร่างและเรนเดอร์เฉพาะตัวมันเอง
+    // นี่คือการแก้ไขหลัก: เรียก setShape และ render() ของ sideWaffleChart โดยตรง
+    sideWaffleChartInstance?.setShape?.(shape);
+    sideWaffleChartInstance?.render?.(); 
+    
+    // ไม่เรียก renderAll() อีกต่อไป
+  };
+
   squareBtn.addEventListener("click", () => {
-    squareBtn.classList.add("active");
-    circleBtn.classList.remove("active");
-    renderAll();
+    applyShape("square");
   });
 
   circleBtn.addEventListener("click", () => {
-    circleBtn.classList.add("active");
-    squareBtn.classList.remove("active");
-    renderAll();
+    // โหมด 'circle' ในโค้ดของคุณถูกตั้งค่าให้เรียกใช้โหมด 'bar' ใน sideWaffleChart.js
+    applyShape("bar"); 
   });
 }
 
@@ -413,15 +419,35 @@ function renderAll() {
   }
 
   // 3. SIDE WAFFLE CHART
-  if (!sideWaffleChartInstance)
+  if (!sideWaffleChartInstance) {
     sideWaffleChartInstance = createSideWaffleChart("#sideWaffleChart", bus, PARTY_COLORS, latestRecord);
-  else {
-    
-  }
-  const squareActive = document.getElementById("shapeSquare")?.classList.contains("active");
-  sideWaffleChartInstance?.setShape?.(squareActive ? "square" : "circle");
 
-  // 4) ZOOMABLE CIRCLE PACKING  ✅ (แก้บล็อกนี้)
+    // กำหนด shape เริ่มต้นตามสถานะปุ่ม เมื่อสร้างครั้งแรก
+    const squareActive = document.getElementById("shapeSquare")?.classList.contains("active");
+    sideWaffleChartInstance?.setShape?.(squareActive ? "square" : "bar");
+  }
+  
+  // ⭐⭐⭐ การแก้ไข: เพิ่มการบังคับ Shape และ Category เมื่อเลือกมติใหม่ ⭐⭐⭐
+  
+  // ฟังก์ชันที่จะถูกเรียกเมื่อมีการคลิก Waffle
+  if (!bus.handlers["waffle:selected"]?.some(fn => fn.name === "handleWaffleSelect")) {
+      const handleWaffleSelect = (rec) => {
+          // 1. บังคับให้ Side Waffle Chart กลับไปเป็นโหมด Waffle (Square) เสมอ
+          sideWaffleChartInstance?.setShape?.("square"); 
+          
+          // 2. บังคับให้เปลี่ยน Category ไปที่ "agree" เสมอ
+          bus.dispatch("pie:categorySelected", "agree");
+          
+          // 3. ปรับ UI ของปุ่ม Shape Toggle ให้ตรงกับสถานะ "square" ด้วย
+          document.getElementById("shapeSquare")?.classList.add("active");
+          document.getElementById("shapeCircle")?.classList.remove("active");
+      };
+      
+      // ผูก Event Handler
+      bus.on("waffle:selected", handleWaffleSelect);
+  }
+
+  // 4) ZOOMABLE CIRCLE PACKING
   console.log("CirclePacking records:", allRecords);
 
   if (!circleAPI) {

@@ -77,7 +77,8 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
 
   function render() {
     svg.selectAll("*:not(defs)").remove();
-    legendContainer.selectAll(".side-legend").remove();
+    // ลบ Legend เก่าออกทุกครั้งที่ render
+    legendContainer.selectAll(".side-legend").remove(); 
 
     if (!lastRecord || !lastCategory) return;
 
@@ -106,7 +107,6 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
       partiesToShow = sortedParties;
     }
 
-    // 🟢 TOTAL votes in this category
     const total = d3.sum(partiesToShow, d => d[1]);
     if (total === 0) return;
 
@@ -139,26 +139,23 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
       const g = svg.append("g").attr("transform", `translate(0.5, 0.5)`);
 
       g.selectAll("rect.cell")
-  .data(cells)
-  .join("rect")
-  .attr("x", (_, i) => (i % cols) * (cellSize + gap))
-  .attr("y", (_, i) => Math.floor(i / cols) * (cellSize + gap))
-  .attr("width", cellSize)
-  .attr("height", cellSize)
-  .attr("rx", 1.5)
-  .attr("fill", d => colorByParty[d] || "#bbb")
-  .style("opacity", d => {
-    if (!selectedParty) return 1;      // ไม่มี filter → เข้มหมด
-    return d === selectedParty ? 1 : 0.25;   // พรรคอื่นจางลง
-  });
+        .data(cells)
+        .join("rect")
+        .attr("x", (_, i) => (i % cols) * (cellSize + gap))
+        .attr("y", (_, i) => Math.floor(i / cols) * (cellSize + gap))
+        .attr("width", cellSize)
+        .attr("height", cellSize)
+        .attr("rx", 1.5)
+        .attr("fill", d => colorByParty[d] || "#bbb")
+        .style("opacity", d => {
+          if (!selectedParty) return 1;
+          return d === selectedParty ? 1 : 0.25;
+        });
 
-
-      // ⭐⭐⭐ FIXED LEGEND — Percent matches Pie Chart ⭐⭐⭐
+      // ⭐⭐⭐ LEGEND for WAFFLE MODE (ยังคงอยู่) ⭐⭐⭐
       legendContainer
         .append("div")
         .attr("class", "side-legend text-body")
-        .style("max-width", "100%")
-        .style("overflow", "hidden")
         .html(() => {
           return (
             `<div class="text-body" style="font-weight:600; margin-bottom:6px;">
@@ -168,18 +165,23 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
             partiesToShow
               .map(([party, count]) => {
                 const color = colorByParty[party] || "#bbb";
-
-                // ⭐ เปอร์เซ็นต์จาก category นี้เท่านั้น — MATCH PIE ⭐
-                const percent = ((count / total) * 100).toFixed(1);
+                const isDim = selectedParty && party !== selectedParty;
+                const opacity = isDim ? 0.25 : 1;
 
                 return `
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin:3px 0;">
+                  <div style="
+                    display:flex; 
+                    justify-content:space-between; 
+                    align-items:center; 
+                    margin:3px 0;
+                    opacity:${opacity};
+                  ">
                     <div style="display:flex; align-items:center; gap:8px;">
                       <span style="width:12px; height:12px; background:${color}; display:inline-block;"></span>
                       <span class="text-body" style="font-size:13px;">${party}</span>
                     </div>
                     <div class="text-body-secondary" style="font-size:13px">
-                      ${count} 
+                      ${count}
                     </div>
                   </div>
                 `;
@@ -225,18 +227,17 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
         .text(d => d[0]);
 
       g.selectAll("rect.bar")
-  .data(partiesToShow)
-  .join("rect")
-  .attr("x", 0)
-  .attr("y", (_, i) => i * (barHeight + barGap))
-  .attr("width", d => x(d[1]))
-  .attr("height", barHeight)
-  .attr("fill", d => colorByParty[d[0]] || "#bbb")
-  .style("opacity", d => {
-    if (!selectedParty) return 1;
-    return d[0] === selectedParty ? 1 : 0.25;
-  });
-
+        .data(partiesToShow)
+        .join("rect")
+        .attr("x", 0)
+        .attr("y", (_, i) => i * (barHeight + barGap))
+        .attr("width", d => x(d[1]))
+        .attr("height", barHeight)
+        .attr("fill", d => colorByParty[d[0]] || "#bbb")
+        .style("opacity", d => {
+          if (!selectedParty) return 1;
+          return d[0] === selectedParty ? 1 : 0.25;
+        });
 
       g.selectAll("text.value")
         .data(partiesToShow)
@@ -246,6 +247,45 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
         .attr("y", (_, i) => i * (barHeight + barGap) + barHeight / 1.3)
         .style("font-size", "11px")
         .text(d => d[1]);
+
+      // ⭐⭐⭐ LEGEND for BAR MODE ถูกลบออกไปแล้ว ⭐⭐⭐
+      /*
+      legendContainer
+        .append("div")
+        .attr("class", "side-legend text-body")
+        .html(() => {
+          return (
+            `<div class="text-body" style="font-weight:600; margin-bottom:6px;">
+              ${lastCategory} — total ${total}
+            </div>` +
+            partiesToShow
+              .map(([party, count]) => {
+                const color = colorByParty[party] || "#bbb";
+                const isDim = selectedParty && party !== selectedParty;
+                const opacity = isDim ? 0.25 : 1;
+
+                return `
+                  <div style="
+                    display:flex; 
+                    justify-content:space-between; 
+                    align-items:center; 
+                    margin:3px 0;
+                    opacity:${opacity};
+                  ">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <span style="width:12px; height:12px; background:${color}; display:inline-block;"></span>
+                      <span style="font-size:13px;">${party}</span>
+                    </div>
+                    <div style="font-size:13px;">
+                      ${count}
+                    </div>
+                  </div>
+                `;
+              })
+              .join("")
+          );
+        });
+      */
     }
   }
 
