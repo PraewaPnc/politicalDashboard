@@ -174,7 +174,7 @@ export function createSideWaffleChart(containerSelector, eventBus, colorByParty,
                       <span class="text-body" style="font-size:13px;">${party}</span>
                     </div>
                     <div class="text-body-secondary" style="font-size:13px">
-                      ${count} (${percent}%)
+                      ${count} 
                     </div>
                   </div>
                 `;

@@ -102,7 +102,7 @@ header .subtitle {
 
 #pieChart,
 #sideWaffleWrap {
-  height: 60vh; /* (Set in previous step) */
+  height: 65vh; /* (Set in previous step) */
   min-height: 0;
   display: flex;
   flex-direction: column;
