@@ -24,6 +24,7 @@ const basePath =
 
 // ===============================
 // GraphQL Queries (Unchanged)
+// ... (ส่วนนี้ไม่เปลี่ยนแปลง)
 // ===============================
 const QUERY_VOTE_EVENTS = `
   query VoteEvents {
@@ -57,7 +58,7 @@ const QUERY_ORGANIZATIONS = `
 `;
 
 // ===============================
-// Utility Functions (Unchanged)
+// Utility Functions (Adjusted fetchFileStaging)
 // ===============================
 const isAbsent = (option) => {
   if (!option) return false;
@@ -107,12 +108,20 @@ function writeStorage(key, data, includeTimestamp = false) {
   }
 }
 
+/**
+ * ฟังก์ชันที่ถูกปรับปรุงให้ยืดหยุ่นในการรับ filePath มากขึ้น
+ * โดยการลบเครื่องหมาย / หรือ ./ ที่นำหน้า filePath ออก
+ */
 async function fetchFileStaging(filePath) {
   try {
-    const clean = filePath.replace(/^\.\//, "");
-    const res = await fetch(`${basePath}${clean}`);
+    // แก้ไข: ลบเครื่องหมาย / ที่ขึ้นต้น และ ./ ที่ขึ้นต้น
+    const clean = filePath.replace(/^\/+|\.\//g, "");
+    
+    // basePath จะมี / ปิดท้ายเสมอ ดังนั้น clean ที่ไม่มี / นำหน้าจะทำให้ URL ถูกต้อง
+    const fullPath = `${basePath}${clean}`;
+    const res = await fetch(fullPath);
 
-    if (!res.ok) throw new Error("Staging file not found or inaccessible.");
+    if (!res.ok) throw new Error(`Staging file not found or inaccessible at: ${fullPath}`);
     const obj = await res.json();
     return obj.data; 
   } catch (e) {
@@ -122,6 +131,7 @@ async function fetchFileStaging(filePath) {
 }
 
 async function fetchWithTimeout(resource, options = {}, timeout = 30000) {
+// ... (ส่วนนี้ไม่เปลี่ยนแปลง)
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 
@@ -139,6 +149,7 @@ async function fetchWithTimeout(resource, options = {}, timeout = 30000) {
 }
 
 async function fetchGraphQLWithTimeout(query, timeout = 30000) {
+// ... (ส่วนนี้ไม่เปลี่ยนแปลง)
   try {
     const res = await fetchWithTimeout(GRAPHQL_ENDPOINT, {
       method: "POST",
@@ -155,6 +166,7 @@ async function fetchGraphQLWithTimeout(query, timeout = 30000) {
 }
 
 function transformVoteEvents(rawEvents, cleanedPartyMap = {}) {
+// ... (ส่วนนี้ไม่เปลี่ยนแปลง)
   if (!Array.isArray(rawEvents)) return [];
 
   return rawEvents.map((ev) => {
@@ -258,7 +270,9 @@ export async function fetchVoteData(onStatusUpdate) {
   if (!voteEvents.length) {
     console.warn("⚠️ GraphQL fetch failed or timed out. Loading from server file staging...");
     onStatusUpdate?.("Fetch failed, loading from server staging file...");
-    const fileStaging = await fetchFileStaging('data_cache/vote_data_cache.json');
+    
+    // ไม่ต้องลบ / ที่นำหน้าแล้ว เพราะ fetchFileStaging จัดการให้
+    const fileStaging = await fetchFileStaging('data_cache/vote_data_cache.json'); 
 
     if (fileStaging) {
       console.log("✅ Loaded vote data from server file staging.");
@@ -293,7 +307,9 @@ export async function forceRefreshVoteData(onStatusUpdate) {
   if (!voteEvents.length) {
     console.warn("❌ GraphQL returned no data, using file staging fallback.");
     onStatusUpdate?.("Refresh failed, loading from server staging file...");
-    const fileStaging = await fetchFileStaging('data_cache/vote_data_cache.json');
+    
+    // ไม่ต้องลบ / ที่นำหน้าแล้ว เพราะ fetchFileStaging จัดการให้
+    const fileStaging = await fetchFileStaging('data_cache/vote_data_cache.json'); 
     return fileStaging;
   }
   
@@ -312,6 +328,7 @@ export async function forceRefreshVoteData(onStatusUpdate) {
 
 // ===============================
 // Hierarchy Builder for Absence (Unchanged)
+// ... (ส่วนนี้ไม่เปลี่ยนแปลง)
 // ===============================
 export function buildAbsenceHierarchy(records) {
   const titlesPerYear = new Map();
@@ -356,7 +373,7 @@ export function buildAbsenceHierarchy(records) {
 }
 
 // ===============================
-// Public: Organizations with Cache (Unchanged)
+// Public: Organizations with Cache (Adjusted fetchFileStaging call)
 // ===============================
 export async function fetchOrganizations() {
   // 1️⃣ Try cache first (with TTL)
@@ -368,14 +385,18 @@ export async function fetchOrganizations() {
 
   // 2️⃣ Fetch live data
   console.log("🌐 Fetching organizations from GraphQL...");
-  const { organizations = [] } = await fetchGraphQL(QUERY_ORGANIZATIONS);
+  // ต้องมีการเรียกใช้ fetchGraphQL ให้ถูกต้อง (เดิมในโค้ดที่ให้มามีการเรียกใช้ fetchGraphQL โดยไม่มี Timeout)
+  // ให้สมมติว่าคุณมีฟังก์ชัน fetchGraphQL หรือใช้ fetchGraphQLWithTimeout ไปเลย
+  const { organizations = [] } = await fetchGraphQLWithTimeout(QUERY_ORGANIZATIONS, 30000); 
 
   // 3️⃣ Fallback to staging if fetch fails
   if (!organizations.length) {
     console.warn("⚠️ Using staging organizations fallback...");
     
     // Check server file staging first (assuming the Node.js pipeline runs for orgs too)
-    const fileStaging = await fetchFileStaging('data_cache/organizations_cache.json');
+    // ไม่ต้องลบ / ที่นำหน้าแล้ว เพราะ fetchFileStaging จัดการให้
+    const fileStaging = await fetchFileStaging('data_cache/organizations_cache.json'); 
+    
     if (fileStaging) {
         console.log("✅ Loaded organizations from server file staging.");
         return fileStaging;
@@ -397,6 +418,7 @@ export async function fetchOrganizations() {
 }
 
 export async function getPartyColors() {
+// ... (ส่วนนี้ไม่เปลี่ยนแปลง)
   const organizations = await fetchOrganizations();
   
   const colors = Object.fromEntries(
