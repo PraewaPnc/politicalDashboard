@@ -293,7 +293,7 @@ export async function forceRefreshVoteData(onStatusUpdate) {
   if (!voteEvents.length) {
     console.warn("❌ GraphQL returned no data, using file staging fallback.");
     onStatusUpdate?.("Refresh failed, loading from server staging file...");
-    const fileStaging = await fetchFileStaging('/data_cache/vote_data_cache.json');
+    const fileStaging = await fetchFileStaging('data_cache/vote_data_cache.json');
     return fileStaging;
   }
   
@@ -375,7 +375,7 @@ export async function fetchOrganizations() {
     console.warn("⚠️ Using staging organizations fallback...");
     
     // Check server file staging first (assuming the Node.js pipeline runs for orgs too)
-    const fileStaging = await fetchFileStaging('/data_cache/organizations_cache.json');
+    const fileStaging = await fetchFileStaging('data_cache/organizations_cache.json');
     if (fileStaging) {
         console.log("✅ Loaded organizations from server file staging.");
         return fileStaging;
