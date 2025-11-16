@@ -7,7 +7,7 @@ export function createWaffleChart(containerSelector, records, eventBus) {
 
   const currentYear = records.length > 0 ? records[0].year : "Data";
 
-  // ... (โค้ดส่วนหัวและโหลดข้อมูล/สี/สถิติ - เหมือนเดิม)
+  // ... (โค้ดส่วนหัว Waffle Chart Title and Subtitle)
   const head = container.append("div")
     .attr("class", "waffle-chart-head");
  
@@ -196,13 +196,16 @@ export function createWaffleChart(containerSelector, records, eventBus) {
         // Clear Timer เก่า (ถ้ามี)
         clearTimeout(touchTimer); 
         
-        // 💡 แสดง Tooltip ทันทีเมื่อ Touch (Touch Hold Behavior)
-        const pointer = d3.pointer(event, this);
-        // Dispatch event โดยสร้าง object ที่มี clientX/Y จำลองจาก d3.pointer
-        bus.dispatch("tooltip:show", { event: { clientX: pointer[0], clientY: pointer[1] }, record: d });
+        // 💡 แก้ไข: ใช้ event.touches[0] เพื่อให้ได้พิกัดหน้าจอที่ถูกต้อง
+        const touch = event.touches[0];
         
-        // ตั้งเวลาซ่อน Tooltip ถ้า Touch ไม่ใช่ Long Press/Hold
-        // เราไม่จำเป็นต้องใช้ touchTimer เพื่อซ่อน เพราะ touchend/touchmove จะทำแทน
+        // Dispatch event โดยใช้ clientX/clientY จาก Touch Event
+        bus.dispatch("tooltip:show", { 
+            event: { clientX: touch.clientX, clientY: touch.clientY }, 
+            record: d 
+        });
+        
+        // ไม่ต้องตั้ง timer สำหรับซ่อน เพราะ touchend/touchmove จะทำแทน
         
         event.stopPropagation();
       })
@@ -332,8 +335,6 @@ export function createWaffleChart(containerSelector, records, eventBus) {
     bus.dispatch("waffle:selected", target);
   });
   
-  // ไม่มี tooltipPinned ให้รีเซ็ตแล้ว
-
   return { latestRecord };
 }
 
