@@ -5,6 +5,8 @@ import { createSideWaffleChart } from "./sideWaffleChart.js";
 import { createDetailsPopup } from "./popup.js";
 import { createCirclePacking } from "./circlePacking.js";
 
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
 let allRecords = [];
 let PARTY_COLORS = {};
 let currentYear = null;
