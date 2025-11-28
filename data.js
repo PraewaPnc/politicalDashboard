@@ -135,7 +135,7 @@ async function fetchFileStaging(filePath) {
   }
 }
 
-async function fetchWithTimeout(resource, options = {}, timeout = 5000) {
+async function fetchWithTimeout(resource, options = {}, timeout = 10000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 
@@ -152,7 +152,7 @@ async function fetchWithTimeout(resource, options = {}, timeout = 5000) {
   }
 }
 
-async function fetchGraphQLWithTimeout(query, timeout = 5000) {
+async function fetchGraphQLWithTimeout(query, timeout = 10000) {
   try {
     const res = await fetchWithTimeout(GRAPHQL_ENDPOINT, {
       method: "POST",
@@ -263,7 +263,7 @@ export async function fetchVoteData(onStatusUpdate) {
 
   console.log("🌐 Fetching vote data from GraphQL with 30s timeout...");
   onStatusUpdate?.("Fetching fresh data from server...");
-  const { voteEvents = [] } = await fetchGraphQLWithTimeout(QUERY_VOTE_EVENTS, 5000);
+  const { voteEvents = [] } = await fetchGraphQLWithTimeout(QUERY_VOTE_EVENTS, 10000);
   
   console.log("Fetching cleaned party name map...");
   onStatusUpdate?.("Fetching cleaned party map...");
@@ -303,7 +303,7 @@ export async function fetchVoteData(onStatusUpdate) {
 export async function forceRefreshVoteData(onStatusUpdate) {
   console.log("🔄 Forcing refresh from GraphQL...");
   onStatusUpdate?.("Forcing refresh from server...");
-  const { voteEvents = [] } = await fetchGraphQLWithTimeout(QUERY_VOTE_EVENTS, 5000);
+  const { voteEvents = [] } = await fetchGraphQLWithTimeout(QUERY_VOTE_EVENTS, 10000);
   if (!voteEvents.length) {
     console.warn("❌ GraphQL returned no data, using file staging fallback.");
     onStatusUpdate?.("Refresh failed, loading from server staging file...");
@@ -382,7 +382,7 @@ export async function fetchOrganizations() {
   // 2️⃣ Fetch live data
   console.log("🌐 Fetching organizations from GraphQL...");
   // แก้ไข: ใช้ fetchGraphQLWithTimeout เพื่อป้องกันการค้าง
-  const { organizations = [] } = await fetchGraphQLWithTimeout(QUERY_ORGANIZATIONS, 5000);
+  const { organizations = [] } = await fetchGraphQLWithTimeout(QUERY_ORGANIZATIONS, 10000);
 
   // 3️⃣ Fallback to staging if fetch fails
   if (!organizations.length) {
