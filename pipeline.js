@@ -15,6 +15,10 @@ const VOTE_CACHE_FILE = path.join(CACHE_DIR, 'vote_data_cache.json');
 const ORG_CACHE_FILE = path.join(CACHE_DIR, 'organizations_cache.json');
 const PARTY_MAP_FILE = path.join(__dirname, 'cleaned_party_map.json'); // Assumed path for the map
 
+// Configuration for the retry mechanism
+const MAX_RETRIES = 3;
+const BASE_DELAY_MS = 1000; // 1 second base delay
+
 // ===============================
 // GraphQL Queries (Unchanged)
 // ===============================
@@ -51,7 +55,7 @@ const QUERY_ORGANIZATIONS = `
 `;
 
 // ===============================
-// Utility Functions (Unchanged)
+// Utility Functions
 // ===============================
 const isAbsent = (option) => {
   if (!option) return false;
@@ -68,26 +72,89 @@ const safeJSONParse = (str) => {
   }
 };
 
+/**
+ * Sleeps for a given number of milliseconds.
+ */
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 // ===============================
-// GraphQL Fetcher (Adapted for Node.js)
+// GraphQL Fetcher (Adapted for Node.js with Retry)
 // ===============================
 async function fetchGraphQL(query) {
-  try {
-    const res = await fetch(GRAPHQL_ENDPOINT, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ query }),
-    });
-    const json = await res.json();
-    if (json.errors) {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const isLastAttempt = attempt === MAX_RETRIES;
+    
+    try {
+      console.log(`Attempt ${attempt}/${MAX_RETRIES}: Fetching GraphQL data...`);
+      const res = await fetch(GRAPHQL_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+        timeout: 60000 // Set a request timeout (60s)
+      });
+
+      // 1. Check for non-2xx status codes (e.g., 500, 503)
+      if (!res.ok) {
+        const statusText = res.statusText || 'Unknown Status';
+        const errorMsg = `HTTP Error ${res.status}: ${statusText}.`;
+        
+        if (isLastAttempt) {
+            throw new Error(`Failed after ${MAX_RETRIES} attempts. Last error: ${errorMsg}`);
+        }
+        
+        console.warn(`Warning: GraphQL fetch failed with status ${res.status}. Retrying...`);
+        // Exponential backoff delay
+        await sleep(BASE_DELAY_MS * (2 ** (attempt - 1))); 
+        continue;
+      }
+
+      // 2. Check for non-JSON responses (like the HTML error you saw)
+      const contentType = res.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const rawText = await res.text();
+        const errorMsg = `Received non-JSON content. Content Type: ${contentType}. Start of response: ${rawText.substring(0, 50)}...`;
+        
+        if (isLastAttempt) {
+             throw new Error(`Failed after ${MAX_RETRIES} attempts. Last error: ${errorMsg}`);
+        }
+
+        console.warn(`Warning: ${errorMsg} Retrying...`);
+        await sleep(BASE_DELAY_MS * (2 ** (attempt - 1)));
+        continue;
+      }
+
+
+      // 3. Process JSON response
+      const json = await res.json();
+      if (json.errors) {
+        // Log the server-side GraphQL errors (no retry needed as connection was successful)
         console.error("GraphQL Errors:", json.errors);
+        return {}; 
+      }
+      
+      console.log(`Successfully fetched data on attempt ${attempt}.`);
+      return json.data || {};
+
+    } catch (err) {
+      // Catches network errors (DNS, timeouts, connection refused, etc.)
+      console.error(`GraphQL fetch error on attempt ${attempt}:`, err.message);
+      
+      if (isLastAttempt) {
+        console.error(`❌ Final GraphQL fetch failed after ${MAX_RETRIES} attempts.`);
         return {};
+      }
+
+      // Exponential backoff delay
+      const delay = BASE_DELAY_MS * (2 ** (attempt - 1));
+      console.log(`Waiting for ${delay}ms before retrying...`);
+      await sleep(delay); 
     }
-    return json.data || {};
-  } catch (err) {
-    console.error("GraphQL fetch error:", err.message);
-    return {};
   }
+
+  // Fallback return if the loop finishes without success
+  return {}; 
 }
 
 /**
